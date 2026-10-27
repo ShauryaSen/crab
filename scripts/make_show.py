@@ -31,6 +31,8 @@ def main():
 
     t = time.time()
     score, meta = compose(plan)
+    for w in meta.get("warnings", []):
+        print("WARNING (plan):", w)
     audio, starts = music.synth_track([tuple(s) for s in plan["sections"]], bpm=plan["bpm"])
     wav = out / f"{plan['name']}.wav"
     music.write_wav(str(wav), audio)

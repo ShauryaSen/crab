@@ -146,7 +146,8 @@ def _render_chunk(args):
     (k0, k1, fps, score, logs, plan, outdir, width, height, cam) = args
     from .render import Renderer
 
-    R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height)
+    R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height,
+                 terrain=plan.get("terrain"))
     for k in range(k0, k1):
         t = k / fps
         R.set_poses(sample(logs, t))
@@ -196,7 +197,8 @@ def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
     from .render import Renderer
 
     at = camera_track(plan, logs, score.duration, width, height)
-    R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height)
+    R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height,
+                 terrain=plan.get("terrain"))
     tiles = []
     for t in times:
         R.set_poses(sample(logs, t))

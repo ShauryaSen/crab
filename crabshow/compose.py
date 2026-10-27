@@ -116,6 +116,27 @@ def scatter_random(n: int, radius: float, seed: int = 1) -> np.ndarray:
     return np.array(pts)
 
 
+def _bob_spec(act, beat):
+    if "every" not in act:
+        return None
+    e0, e1 = act["every"] if isinstance(act["every"], list) else (act["every"], act["every"])
+    return (1.0 / (e0 * beat), 1.0 / (e1 * beat), act.get("amp", 0.035))
+
+
+def _ripple(act, pos, rng, beat):
+    ripple = act.get("ripple")
+    if not ripple:
+        return None
+    c = pos.mean(0)
+    if ripple == "center":
+        d = np.linalg.norm(pos - c, axis=1)
+    elif ripple == "left":
+        d = pos[:, 0] - pos[:, 0].min()
+    else:
+        d = rng.uniform(0, 1, len(pos))
+    return d / (np.ptp(d) + 1e-9) * act.get("ripple_s", beat * 2)
+
+
 def compose(plan: dict) -> tuple[Score, dict]:
     n = plan["n"]
     bar = 4 * 60.0 / plan["bpm"]
@@ -123,7 +144,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
     total_bars = sum(b for _, b in plan["sections"])
     rng = np.random.default_rng(plan.get("seed", 3))
     start = scatter(n, plan.get("scatter_radius", 0.42 * np.sqrt(n)), plan.get("seed", 1))
-    score = Score(n=n, start=start, start_yaw=FACE_CAMERA, duration=total_bars * bar)
+    score = Score(n=n, start=start, start_yaw=FACE_CAMERA, duration=total_bars * bar,
+                  terrain=plan.get("terrain"))
     pos = start.copy()
     cols = np.zeros((n, 3))
     glow = np.zeros(n)
@@ -155,14 +177,32 @@ def compose(plan: dict) -> tuple[Score, dict]:
             far = float(np.linalg.norm(targets - pos, axis=1).max())
             vpk = peak_speed(far, dur)
             meta.setdefault("warnings", [])
-            if vpk > 0.9:
+            if vpk > 0.75:
                 meta["warnings"].append(f"bar {act['bar']}: longest walk {far:.1f} m needs "
                                         f"{vpk:.2f} m/s peak; give it more bars")
-            score.cues.append(Cue(t, "move", dur, targets=targets, yaw=FACE_CAMERA))
+            score.cues.append(Cue(t, "move", dur, targets=targets, yaw=FACE_CAMERA,
+                                  bob=_bob_spec(act, beat)))
             new_cols = np.array(PALETTES[act.get("palette", "white")](targets, n))
             score.lights.append(Light(t, new_cols, np.ones(n), fade=dur * 0.8))
             cols, glow, pos = new_cols, np.ones(n), targets
             meta["formations"].append({"bar": act["bar"], "label": act.get("text", act.get("shape"))})
+        elif do == "bounce":
+            # Stand in place and bounce; rate in beats per bounce, e.g. "every": [2, 0.5]
+            # starts on every other beat and ends four bounces per beat.
+            score.cues.append(Cue(t, "hold", dur, yaw=FACE_CAMERA, bob=_bob_spec(act, beat)))
+        elif do == "jump":
+            offsets = _ripple(act, pos, rng, beat)
+            # Take-off comes ~0.3 s after the jump starts: start early so it lands on the beat.
+            score.cues.append(Cue(t - 0.3, "jump", dur, offsets=offsets, yaw=FACE_CAMERA))
+            flash_t = (offsets if offsets is not None else np.zeros(n))
+            for k in range(6):
+                tk = t + float(flash_t.max()) * k / 5
+                f = np.clip(1 - np.abs(flash_t - (tk - t)) / (beat * 0.5), 0, 1) \
+                    if offsets is not None else np.ones(n) * (k == 0)
+                score.lights.append(Light(tk, cols * (1 - f[:, None]) + f[:, None], np.ones(n),
+                                          fade=0.04))
+            score.lights.append(Light(t + float(flash_t.max()) + beat, cols.copy(), np.ones(n),
+                                      fade=0.3))
         elif do == "shift":
             # The whole formation walks together, keeping its shape (no re-assignment).
             targets = pos + np.asarray(act["by"], dtype=float)

@@ -32,9 +32,16 @@ class Style:
     shadows: bool = True
     haze: tuple = (0.15, 0.25, 0.35, 1)
     extra_lights: list = field(default_factory=list)
+    ocean: tuple | None = None         # rgb of a sea plane beyond y = +ocean_y
+    ocean_y: float = 14.0
 
 
 STYLES = {
+    "moonbeach": Style(
+        "moonbeach", sky_top=(0.01, 0.02, 0.07), sky_bottom=(0.06, 0.08, 0.17),
+        floor_rgb1=(0.42, 0.40, 0.50), floor_rgb2=(0.38, 0.36, 0.46), floor_texture="flat",
+        floor_reflect=0.12, ambient=0.05, headlight=0.03, key_light=0.35, glow=0.85,
+        haze=(0.05, 0.07, 0.15, 1), ocean=(0.04, 0.13, 0.30)),
     "night": Style(
         "night", sky_top=(0.01, 0.02, 0.06), sky_bottom=(0.0, 0.0, 0.01),
         floor_rgb1=(0.20, 0.18, 0.17), floor_rgb2=(0.12, 0.11, 0.11), floor_texture="checker", floor_scale=0.5,
@@ -51,7 +58,7 @@ STYLES = {
 }
 
 
-def build_scene(n: int, colors, style: Style, width=1080, height=1920):
+def build_scene(n: int, colors, style: Style, width=1080, height=1920, terrain=None):
     from .lod import swarm_xml
 
     world = mujoco.MjSpec.from_string(swarm_xml(n))
@@ -85,12 +92,27 @@ def build_scene(n: int, colors, style: Style, width=1080, height=1920):
                              texrepeat=[style.floor_scale, style.floor_scale], texuniform=True)
     mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = "floortex"
     world.worldbody.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[60, 60, 0.1],
-                             material="floormat", contype=0, conaffinity=0)
-    key = world.worldbody.add_light(name="key", pos=[3, -4, 8], dir=[-0.3, 0.4, -1],
+                             material="floormat", contype=0, conaffinity=0,
+                             pos=[0, 0, -0.15 if terrain else 0])
+    if terrain:
+        from .terrain import add_hfield
+
+        add_hfield(world, contype=0, conaffinity=0, material="floormat", **terrain)
+    key_dir = [-0.6, 0.5, -0.45] if style.ocean else [-0.3, 0.4, -1]
+    key = world.worldbody.add_light(name="key", pos=[12, -10, 9], dir=key_dir,
                                     diffuse=[style.key_light] * 3, specular=[0.2] * 3,
                                     castshadow=style.shadows)
     key.cutoff = 60
     key.exponent = 1
+    key.range = 500.0     # MuJoCo >= 3.3 lights stop at `range` (default 10 m)
+    if style.ocean:     # the moon: a directional light, so the whole beach is lit evenly
+        key.type = mujoco.mjtLightType.mjLIGHT_DIRECTIONAL
+    if style.ocean:
+        sea = world.add_material(name="sea", rgba=[*style.ocean, 1], reflectance=0.6,
+                                 specular=0.9, shininess=0.9)
+        world.worldbody.add_geom(name="sea", type=mujoco.mjtGeom.mjGEOM_BOX,
+                                 size=[80, 40, 0.05], pos=[0, style.ocean_y + 40, -0.02],
+                                 material="sea", contype=0, conaffinity=0)
     for p, d, c in style.extra_lights:
         world.worldbody.add_light(pos=list(p), dir=list(d), diffuse=list(c), castshadow=False)
 
@@ -103,9 +125,9 @@ def build_scene(n: int, colors, style: Style, width=1080, height=1920):
 
 
 class Renderer:
-    def __init__(self, n, colors, style="night", width=1080, height=1920):
+    def __init__(self, n, colors, style="night", width=1080, height=1920, terrain=None):
         self.style = STYLES[style] if isinstance(style, str) else style
-        self.model = build_scene(n, colors, self.style, width, height)
+        self.model = build_scene(n, colors, self.style, width, height, terrain)
         self.data = mujoco.MjData(self.model)
         self.r = mujoco.Renderer(self.model, height, width)
         self.cam = mujoco.MjvCamera()
@@ -129,6 +151,7 @@ class Renderer:
         for i, q in enumerate(qposes):
             self.data.qpos[i * self.nq1:(i + 1) * self.nq1] = q
         mujoco.mj_kinematics(self.model, self.data)
+        mujoco.mj_camlight(self.model, self.data)   # lights and cameras follow bodies
 
     def frame(self, lookat, distance, azimuth, elevation):
         self.cam.lookat[:] = lookat

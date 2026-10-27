@@ -46,7 +46,7 @@ def _torque_limit(w):
     return np.where(w >= W_MAX, 0.0, lim)
 
 
-def build_spec(floor: bool = True) -> mujoco.MjSpec:
+def build_spec(floor: bool = True, terrain: dict | None = None) -> mujoco.MjSpec:
     """The robot as training saw it: motors, collision masks, contact params, solver."""
     spec = mujoco.MjSpec.from_file(str(ROBOT_XML))
     feet = {f"{n}_meshcol" for n in FEET}
@@ -78,7 +78,11 @@ def build_spec(floor: bool = True) -> mujoco.MjSpec:
             a.ctrlrange = [-EFFORT, EFFORT]
             a.forcelimited = True
             a.forcerange = [-EFFORT, EFFORT]
-    if floor:
+    if terrain:
+        from .terrain import add_hfield
+
+        add_hfield(spec, **terrain)
+    elif floor:
         spec.worldbody.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE,
                                 size=[0, 0, 0.01], contype=1, conaffinity=1)
         spec.worldbody.add_light(pos=[0, 0, 3], dir=[0, 0, -1], diffuse=[0.8, 0.8, 0.8])
@@ -159,8 +163,8 @@ class Segment:
 
 
 class Crab:
-    def __init__(self, x=0.0, y=0.0, yaw=0.0, seed=0):
-        self.spec = build_spec()
+    def __init__(self, x=0.0, y=0.0, yaw=0.0, seed=0, terrain: dict | None = None):
+        self.spec = build_spec(terrain=terrain)
         self.model = self.spec.compile()
         self.data = mujoco.MjData(self.model)
         m = self.model
@@ -174,7 +178,12 @@ class Crab:
         self.log_qpos: list[np.ndarray] = []
         p = policy("posture")
         d = self.data
-        d.qpos[:3] = [x, y, STAND_Z]
+        z0 = 0.0
+        if terrain:
+            from .terrain import height
+
+            z0 = float(height(x, y, terrain.get("amp", 0.08), terrain.get("seed", 0)))
+        d.qpos[:3] = [x, y, STAND_Z + z0 + 0.01]
         d.qpos[3:7] = [np.cos(yaw / 2), 0, 0, np.sin(yaw / 2)]
         for n in self.jnames:
             d.qpos[self.qadr[n]] = p.default[n]
@@ -280,7 +289,8 @@ class Crab:
                     parts.append(gate * np.array([np.sin(2 * np.pi * phase),
                                                   np.cos(2 * np.pi * phase)]))
                 elif n == "posture_command":
-                    parts.append(np.asarray(posture, dtype=np.float64))
+                    pc = posture(self) if callable(posture) else posture
+                    parts.append(np.asarray(pc, dtype=np.float64))
                 else:
                     raise KeyError(n)
             obs = np.concatenate(parts)
@@ -343,3 +353,59 @@ class Crab:
             self._substeps(pol, pol.decimation, log_every)
             k_f += speed
         return int(k_f)
+
+    # -- the jump (residual on the recorded command) ---------------------------
+    def run_jump(self, log_every=1 / 30):
+        """One recorded high jump, from stand to landing (about 1.2 s)."""
+        pol = policy("jump")
+        ref, meta = pol.ref, pol.ref_meta
+        order = pol.ref_order
+        oidx = [order.index(n) for n in pol.obs_joints]
+        aidx = [order.index(n) for n in pol.act_joints]
+        Q, QC = ref["q"], ref["q_cmd"]
+        dflt = np.array([pol.default[n] for n in pol.obs_joints])
+
+        def lerp(tab, idx):
+            idx = float(np.clip(idx, 0, len(tab) - 1))
+            lo = int(np.floor(idx))
+            hi = min(lo + 1, len(tab) - 1)
+            w = idx - lo
+            return tab[lo] * (1 - w) + tab[hi] * w
+
+        def q_at(tsg):
+            idx = np.clip((meta["t_go"] + tsg) * meta["rec_hz"], meta["go_frame"], len(Q) - 1)
+            return lerp(Q, idx)
+
+        last_a = np.zeros(len(pol.act_joints))
+        steps = int(round((meta["duration"] - meta["t_go"]) / pol.control_dt))
+        for k in range(steps):
+            tsg = k * pol.control_dt
+            gyro, grav = self._imu()
+            parts = []
+            for t in pol.terms:
+                n = t["name"]
+                if n == "base_ang_vel":
+                    parts.append(gyro)
+                elif n == "projected_gravity":
+                    parts.append(grav)
+                elif n == "joint_pos":
+                    parts.append(self.q(pol.obs_joints) - dflt)
+                elif n == "joint_vel":
+                    parts.append(self.qd(pol.obs_joints))
+                elif n == "actions":
+                    parts.append(last_a)
+                elif n == "jump_phase":
+                    parts.append([np.clip(tsg / meta["span"], 0, 1)])
+                elif n == "ref_future":
+                    for off in meta["lookahead_s"]:
+                        parts.append(q_at(tsg + off)[oidx] - dflt)
+                else:
+                    raise KeyError(n)
+            obs = np.concatenate([np.asarray(p, dtype=np.float64) for p in parts])
+            a = pol.act(obs)
+            last_a = a
+            t_abs = tsg + meta["t_go"] + meta["baseline_lead_s"]
+            base_row = lerp(QC, t_abs * meta["control_hz"])
+            base = {n: base_row[order.index(n)] for n in pol.act_joints}
+            self._set_target(pol, a, base=base)
+            self._substeps(pol, pol.decimation, log_every)

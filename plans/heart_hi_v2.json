@@ -1,0 +1,207 @@
+{
+  "name": "heart_hi_v2",
+  "prompt": "crabs: light up, make a heart, dance on the beat drop, then spell HI",
+  "n": 72,
+  "style": "moonbeach",
+  "bpm": 128,
+  "seed": 1,
+  "sections": [
+    [
+      "intro",
+      4
+    ],
+    [
+      "build",
+      4
+    ],
+    [
+      "drop",
+      8
+    ],
+    [
+      "outro",
+      4
+    ]
+  ],
+  "acts": [
+    {
+      "bar": 0.5,
+      "do": "light_up",
+      "palette": "rainbow",
+      "bars": 3
+    },
+    {
+      "bar": 2,
+      "do": "bounce",
+      "bars": 2,
+      "every": 2,
+      "amp": 0.03
+    },
+    {
+      "bar": 4,
+      "do": "form",
+      "shape": "heart",
+      "filled": true,
+      "bars": 3.8,
+      "palette": "love",
+      "every": [
+        1,
+        0.25
+      ],
+      "amp": 0.035
+    },
+    {
+      "bar": 8,
+      "do": "jump",
+      "bars": 1,
+      "ripple": "center",
+      "ripple_s": 0.6
+    },
+    {
+      "bar": 9,
+      "do": "dance",
+      "move": "dance_brazilian",
+      "bars": 2.5,
+      "ripple": "center"
+    },
+    {
+      "bar": 11.5,
+      "do": "form",
+      "text": "HI",
+      "bars": 4,
+      "palette": "ice",
+      "every": 1,
+      "amp": 0.03
+    },
+    {
+      "bar": 15.5,
+      "do": "gesture",
+      "move": "gesture_hello",
+      "bars": 2.5
+    },
+    {
+      "bar": 18,
+      "do": "bounce",
+      "bars": 1,
+      "every": 1,
+      "amp": 0.03
+    },
+    {
+      "bar": 18.5,
+      "do": "lights_out",
+      "bars": 1.5
+    }
+  ],
+  "camera": [
+    [
+      0.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -80
+    ],
+    [
+      7.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -70
+    ],
+    [
+      14.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -60
+    ],
+    [
+      15.3,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.75,
+      85,
+      -35
+    ],
+    [
+      17.5,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.45,
+      70,
+      -25
+    ],
+    [
+      22.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.5,
+      115,
+      -30
+    ],
+    [
+      24.5,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -72
+    ],
+    [
+      37.5,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.05,
+      90,
+      -80
+    ]
+  ],
+  "prompt_hold": 6.5,
+  "captions": [
+    {
+      "t0": 33.5,
+      "t1": 37.5,
+      "y": 0.74,
+      "lines": [
+        [
+          "Every crab runs a trained RL policy",
+          0.62
+        ],
+        [
+          "in physics. Nothing is keyframed.",
+          0.62
+        ],
+        [
+          "Reply with a word. They'll spell it.",
+          0.62
+        ]
+      ]
+    }
+  ]
+}

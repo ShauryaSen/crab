@@ -25,6 +25,7 @@ class Cue:
     start_frame: int = 0
     offsets: np.ndarray | None = None   # (n,) seconds of delay per crab, for ripples
     yaw: float = -np.pi / 2       # heading to hold while moving/holding
+    bob: tuple | None = None      # (hz_start, hz_end, amp_m, t_ref): body bounce while walking/holding
 
 
 @dataclass
@@ -44,6 +45,7 @@ class Score:
     cues: list[Cue] = field(default_factory=list)
     lights: list[Light] = field(default_factory=list)
     duration: float = 0.0
+    terrain: dict | None = None
 
 
 RAMP = 0.25   # fraction of a move spent accelerating (and again decelerating)
@@ -80,19 +82,29 @@ def simulate_crab(args):
     i, score = args
     from .runtime import Crab
 
-    c = Crab(*score.start[i], yaw=score.start_yaw, seed=i)
+    c = Crab(*score.start[i], yaw=score.start_yaw, seed=i, terrain=score.terrain)
     home = score.start[i].copy()     # where this crab is meant to be standing
     for cue in score.cues:
         # Fill any gap before this cue by standing at (and creeping back to) home.
         gap = cue.t - c.t
         if gap > 0.01:
             c.run_walk(gap, _hold_cmd(home, cue.yaw))
+        pst = _bob(cue)
         if cue.kind == "move":
             a, b = c.pos.copy(), cue.targets[i]
-            c.run_walk(cue.dur, _move_cmd(a, b, cue.t, cue.dur, cue.yaw))
+            c.run_walk(cue.dur, _move_cmd(a, b, cue.t, cue.dur, cue.yaw), posture=pst)
             home = b.copy()
         elif cue.kind == "hold":
-            c.run_walk(cue.dur, _hold_cmd(home, cue.yaw))
+            c.run_walk(cue.dur, _hold_cmd(home, cue.yaw), posture=pst)
+        elif cue.kind == "jump":
+            delay = float(cue.offsets[i]) if cue.offsets is not None else 0.0
+            pre = max(0.0, delay + (cue.t - c.t))
+            if pre > 0.01:
+                c.run_walk(pre, _hold_cmd(home, cue.yaw))
+            c.run_jump()
+            rest = cue.t + cue.dur - c.t
+            if rest > 0.01:
+                c.run_walk(rest, _hold_cmd(home, cue.yaw))
         elif cue.kind == "clip":
             delay = float(cue.offsets[i]) if cue.offsets is not None else 0.0
             if delay > 0.01:
@@ -102,6 +114,26 @@ def simulate_crab(args):
     if end > 0.01:
         c.run_walk(end, _hold_cmd(home, score.cues[-1].yaw if score.cues else 0.0))
     return np.array(c.log_t), np.array(c.log_qpos)
+
+
+def _bob(cue):
+    """Posture command for a beat bounce whose rate sweeps hz_start -> hz_end over the cue.
+
+    Height only: [twist, pitch, roll, height offset]. Phase is continuous across the sweep
+    so the bounce speeds up smoothly, and peaks land on beats when hz is a beat multiple.
+    """
+    if not cue.bob:
+        return (0.0, 0.0, 0.0, 0.0)
+    f0, f1, amp = cue.bob[:3]
+    t0, T = cue.t, cue.dur
+
+    def f(crab):
+        u = np.clip((crab.t - t0) / T, 0, 1)
+        # phase = integral of a linear frequency sweep
+        ph = 2 * np.pi * T * (f0 * u + 0.5 * (f1 - f0) * u * u)
+        a = amp * (1 - 0.4 * (f1 > 3) * u)         # fast bounces need a smaller stroke
+        return (0.0, 0.0, 0.0, a * np.cos(ph))
+    return f
 
 
 def _body_cmd(crab, v_world, yaw_des, vmax=0.95):
