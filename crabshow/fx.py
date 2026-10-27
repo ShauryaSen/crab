@@ -114,8 +114,8 @@ class FX:
             energy = float(np.interp(t, bars, [e[1] for e in energy]))
         if pat == "ripple":
             # Rings travelling outwards, one per beat.
-            w = np.clip(1 - np.abs(((r / 2.2) - (b % 4)) % 4 - 0) / 0.6, 0, 1)
-            base = 0.12 + 0.5 * w + 0.15 * pulse
+            w = np.clip(1 - np.abs(((r / 2.2) - (b % 4)) % 4 - 0) / 0.35, 0, 1)
+            base = 0.10 + 0.28 * w + 0.12 * pulse
         elif pat == "checker":
             par = ((np.floor(X / tile) + np.floor(Y / tile) + np.floor(b)) % 2)
             base = 0.08 + 0.35 * par * pulse
