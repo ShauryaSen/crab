@@ -75,20 +75,30 @@ def camera_track(plan, logs, duration, width, height):
     return at
 
 
+_VIGNETTE: dict = {}
+
+
 def bloom(img: Image.Image, strength=0.9, radius=18, threshold=110) -> Image.Image:
+    """Glow around bright pixels. `radius` is in pixels at 540 px width and scales with
+    the frame; the blur runs at quarter resolution, which a glow cannot tell apart."""
     a = np.asarray(img).astype(np.float32)
+    h, w_ = a.shape[:2]
     lum = a.max(-1, keepdims=True)
     bright = np.clip((lum - threshold) / (255 - threshold), 0, 1) * a
-    b = Image.fromarray(bright.astype(np.uint8))
-    blur = np.zeros_like(a)
-    for r, w in ((radius / 3, 0.5), (radius, 0.35), (radius * 3, 0.25)):
-        blur += np.asarray(b.filter(ImageFilter.GaussianBlur(r))).astype(np.float32) * w
+    q = 4
+    small = Image.fromarray(bright.astype(np.uint8)).resize((w_ // q, h // q), Image.BILINEAR)
+    scale = w_ / 540.0 / q
+    blur = np.zeros((h // q, w_ // q, 3), np.float32)
+    for r, wt in ((radius / 3, 0.5), (radius, 0.35), (radius * 3, 0.25)):
+        blur += np.asarray(small.filter(ImageFilter.GaussianBlur(r * scale))).astype(np.float32) * wt
+    blur = np.asarray(Image.fromarray(np.clip(blur, 0, 255).astype(np.uint8))
+                      .resize((w_, h), Image.BILINEAR)).astype(np.float32)
     out = a + strength * blur
-    # Soft vignette.
-    h, w_ = a.shape[:2]
-    yy, xx = np.mgrid[0:h, 0:w_]
-    v = 1 - 0.35 * (((xx - w_ / 2) / (w_ / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2) / 2
-    out *= v[..., None]
+    if (h, w_) not in _VIGNETTE:
+        yy, xx = np.mgrid[0:h, 0:w_]
+        _VIGNETTE[(h, w_)] = (1 - 0.35 * (((xx - w_ / 2) / (w_ / 2)) ** 2
+                                          + ((yy - h / 2) / (h / 2)) ** 2) / 2)[..., None]
+    out *= _VIGNETTE[(h, w_)]
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
 
 
@@ -148,12 +158,22 @@ def _render_chunk(args):
 
     R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height,
                  terrain=plan.get("terrain"))
+    fx = None
+    if plan.get("fx"):
+        from .fx import FX
+
+        fx = FX(plan, score, logs)
     for k in range(k0, k1):
         t = k / fps
-        R.set_poses(sample(logs, t))
+        poses = sample(logs, t)
+        R.set_poses(poses)
         cols, glow = lights_at(score, t)
         R.set_lights(cols, glow)
-        img = Image.fromarray(R.frame(*cam[k]))
+        extra = None
+        if fx is not None:
+            xy = np.array([q[:2] for q in poses])
+            extra = lambda scn: fx.draw(scn, t, xy, cols, glow)
+        img = Image.fromarray(R.frame(*cam[k], extra=extra))
         if R.style.glow > 0:
             img = bloom(img)
         img = overlay_prompt(img, plan["prompt"], t, hold_until=plan.get("prompt_hold", 6.0))
@@ -199,11 +219,20 @@ def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
     at = camera_track(plan, logs, score.duration, width, height)
     R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height,
                  terrain=plan.get("terrain"))
+    fx = None
+    if plan.get("fx"):
+        from .fx import FX
+
+        fx = FX(plan, score, logs)
     tiles = []
     for t in times:
-        R.set_poses(sample(logs, t))
-        R.set_lights(*lights_at(score, t))
-        img = Image.fromarray(R.frame(*at(t)))
+        poses = sample(logs, t)
+        R.set_poses(poses)
+        cols, glow = lights_at(score, t)
+        R.set_lights(cols, glow)
+        xy = np.array([q[:2] for q in poses])
+        extra = (lambda scn: fx.draw(scn, t, xy, cols, glow)) if fx else None
+        img = Image.fromarray(R.frame(*at(t), extra=extra))
         if R.style.glow > 0:
             img = bloom(img, radius=8)
         ImageDraw.Draw(img).text((6, 6), f"t={t:.1f}s", fill=(255, 255, 0))

@@ -129,7 +129,7 @@ class Renderer:
         self.style = STYLES[style] if isinstance(style, str) else style
         self.model = build_scene(n, colors, self.style, width, height, terrain)
         self.data = mujoco.MjData(self.model)
-        self.r = mujoco.Renderer(self.model, height, width)
+        self.r = mujoco.Renderer(self.model, height, width, max_geom=24000)
         self.cam = mujoco.MjvCamera()
         self.opt = mujoco.MjvOption()
         self.n = n
@@ -153,12 +153,14 @@ class Renderer:
         mujoco.mj_kinematics(self.model, self.data)
         mujoco.mj_camlight(self.model, self.data)   # lights and cameras follow bodies
 
-    def frame(self, lookat, distance, azimuth, elevation):
+    def frame(self, lookat, distance, azimuth, elevation, extra=None):
         self.cam.lookat[:] = lookat
         self.cam.distance = distance
         self.cam.azimuth = azimuth
         self.cam.elevation = elevation
         self.r.update_scene(self.data, self.cam, self.opt)
+        if extra is not None:
+            extra(self.r.scene)
         if self.style.shadows:
             self.r.scene.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = True
         self.r.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = self.style.floor_reflect > 0

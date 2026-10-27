@@ -161,3 +161,172 @@ def write_wav(path, audio):
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes(pcm.tobytes())
+
+
+# ---------------------------------------------------------------------------
+# Rave track v2: sidechained supersaws, a plucked hook with delay, snare-roll
+# build with a riser, crash on the drop. Original composition, deterministic.
+# ---------------------------------------------------------------------------
+
+def _note(m):
+    return 440.0 * 2 ** ((m - 69) / 12)
+
+
+def _supersaw(freq, n, voices=7, spread=0.25, rng=None):
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    rng = rng or np.random.default_rng(0)
+    for v in range(voices):
+        d = (v - (voices - 1) / 2) / ((voices - 1) / 2) * spread / 100 * 2
+        ph = rng.uniform(0, 1)
+        out += 2 * ((freq * (1 + d) * t + ph) % 1.0) - 1
+    return out / voices
+
+
+def _adsr(n, a, d, s, r, sus_frac=0.7):
+    t = np.arange(n) / SR
+    T = n / SR
+    env = np.where(t < a, t / max(a, 1e-4),
+                   np.where(t < a + d, 1 - (1 - s) * (t - a) / max(d, 1e-4), s))
+    rel_start = T * sus_frac
+    env = np.where(t > rel_start, env * np.exp(-(t - rel_start) / max(r, 1e-4)), env)
+    return env
+
+
+def _crash(n, rng):
+    noise = rng.standard_normal(n)
+    from scipy.signal import lfilter
+    hp = lfilter([1, -1], [1, -0.97], noise)
+    return hp * np.exp(-np.arange(n) / SR / 1.2) * 0.35
+
+
+def synth_rave(sections, bpm=125.0, seed=3):
+    """sections: list of (name, bars), names in intro/build/drop/break/outro.
+    Returns (stereo float32, section starts)."""
+    from scipy.signal import lfilter
+
+    rng = np.random.default_rng(seed)
+    beat_n = int(round(60.0 / bpm * SR))
+    bar_n = beat_n * 4
+    six = beat_n // 4
+    total = sum(b for _, b in sections) * bar_n
+    L = np.zeros(total + 4 * SR)
+    R = np.zeros_like(L)
+    side = np.ones_like(L)          # sidechain gain, ducked by every kick
+
+    # Am - F - C - G, voiced high; the hook outlines them.
+    prog = [[57, 60, 64, 69], [53, 57, 60, 65], [55, 60, 64, 67], [55, 59, 62, 67]]
+    bass = [33, 29, 36, 31]
+    # A 2-bar hook in 16ths (MIDI, None = rest), repeated with the chord root shifting.
+    hook = [81, None, 76, 79, None, 81, 84, None, 83, None, 79, 76, None, 79, 81, None,
+            81, None, 76, 79, None, 81, 88, None, 86, 84, None, 83, 79, None, 76, None]
+
+    kick = _kick(beat_n)
+    clap = _clap(beat_n, rng)
+    hat = _hat(six, rng)
+    starts = []
+    pos = 0
+    gbar = 0
+    for name, bars in sections:
+        starts.append((name, pos / SR))
+        for b in range(bars):
+            prog_i = gbar % 4
+            prog_frac = (b + 1) / bars
+            o = pos
+            seg = slice(o, o + bar_n)
+            full = name in ("drop",)
+            # Kick + sidechain
+            kick_on = name in ("drop", "outro") or (name == "intro" and b >= bars // 2) \
+                or (name == "build" and prog_frac <= 0.75)
+            for k in range(4):
+                ko = o + k * beat_n
+                if kick_on:
+                    L[ko:ko + beat_n] += kick * 0.95
+                    R[ko:ko + beat_n] += kick * 0.95
+                    duck = 1 - 0.75 * np.exp(-np.arange(beat_n) / SR / 0.09)
+                    side[ko:ko + beat_n] = np.minimum(side[ko:ko + beat_n], duck)
+            # Hats on the off-beats, claps on 2 and 4
+            if name in ("drop", "build", "outro") or (name == "intro" and b >= 1):
+                for k in range(4):
+                    ho = o + k * beat_n + beat_n // 2
+                    L[ho:ho + six] += hat * 1.1
+                    R[ho:ho + six] += hat * 0.9
+            if full or name == "outro":
+                for k in (1, 3):
+                    co = o + k * beat_n
+                    L[co:co + beat_n] += clap * 0.8
+                    R[co:co + beat_n] += clap * 0.8
+            # Build: snare roll accelerating 4 -> 8 -> 16 -> 32 per bar, riser
+            if name == "build":
+                div = 4 if prog_frac <= 0.25 else 8 if prog_frac <= 0.5 else 16 if prog_frac <= 0.75 else 32
+                step = bar_n // div
+                for k in range(div):
+                    so = o + k * step
+                    m = min(len(clap), step)
+                    L[so:so + m] += clap[:m] * (0.25 + 0.6 * prog_frac)
+                    R[so:so + m] += clap[:m] * (0.25 + 0.6 * prog_frac)
+                t = np.arange(bar_n) / SR
+                f = 300 * 2 ** ((b + t / t[-1]) / bars * 3)
+                riser = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.05 * (b + 1) / bars
+                noise = lfilter([1, -1], [1, -0.9], rng.standard_normal(bar_n)) * 0.04 * prog_frac
+                L[seg] += riser + noise
+                R[seg] += riser + noise
+            # Pads: supersaw chords; open filter in the drop, swell in the build
+            chord = prog[prog_i]
+            pad = sum(_supersaw(_note(m), bar_n, rng=rng) for m in chord) / len(chord)
+            cutoff = {"intro": 900, "build": 600 + 5000 * prog_frac ** 2, "drop": 7000,
+                      "break": 700, "outro": 1500}[name]
+            pad = _lowpass(pad, cutoff) * (0.22 if full else 0.10)
+            if full:   # rhythmic stabs on the off-8ths
+                gate = np.zeros(bar_n)
+                for k in range(8):
+                    if k % 2 == 1 or k in (0, 6):
+                        gate[k * beat_n // 2:k * beat_n // 2 + int(beat_n * 0.4)] = 1
+                pad = pad * (0.35 + 0.65 * _lowpass(gate, 60))
+            L[seg] += pad * side[seg]
+            R[seg] += _lowpass(np.roll(pad, 300), cutoff) * side[seg]
+            # Bass: off-beat house bass in drop/outro, sustained root elsewhere
+            root = _note(bass[prog_i])
+            if full or name == "outro":
+                for k in range(4):
+                    bo = o + k * beat_n + beat_n // 2
+                    n = beat_n // 2
+                    tone = (_saw(root, n) * 0.5 + np.sin(2 * np.pi * root * np.arange(n) / SR))
+                    tone = _lowpass(tone, 400) * _adsr(n, 0.005, 0.08, 0.6, 0.05)
+                    L[bo:bo + n] += tone * 0.55
+                    R[bo:bo + n] += tone * 0.55
+            elif name != "intro" or b >= bars // 2:
+                tone = np.sin(2 * np.pi * root * np.arange(bar_n) / SR) * 0.08
+                L[seg] += tone * side[seg]
+                R[seg] += tone * side[seg]
+            # Hook: plucked supersaw lead with ping-pong delay (drop, and filtered in build)
+            if full or (name == "build" and prog_frac > 0.5) or name == "intro":
+                shift = 0
+                half = (gbar % 2) * 16
+                lead = np.zeros(bar_n)
+                for k in range(16):
+                    m = hook[half + k]
+                    if m is None:
+                        continue
+                    n = six * 2
+                    tone = _supersaw(_note(m + shift), n, voices=5, spread=0.18, rng=rng)
+                    env = _adsr(n, 0.002, 0.12, 0.25, 0.08, 0.5)
+                    so = k * six
+                    lead[so:so + n] += (tone * env)[:max(0, min(n, bar_n - so))]
+                lc = 6000 if full else (1200 if name == "intro" else 900 + 3000 * prog_frac)
+                lead = _lowpass(lead, lc) * (0.30 if full else 0.16)
+                d = int(0.75 * beat_n)
+                L[seg] += lead
+                R[seg] += lead * 0.8
+                L[o + d:o + d + bar_n] += lead * 0.35
+                R[o + 2 * d:o + 2 * d + bar_n] += lead * 0.25
+            if full and b == 0:
+                c = _crash(3 * SR, rng)
+                L[o:o + len(c)] += c
+                R[o:o + len(c)] += np.roll(c, 200)
+            pos += bar_n
+            gbar += 1
+    mix = np.stack([L[:total], R[:total]], 1)
+    mix /= np.abs(mix).max() + 1e-9
+    mix = np.tanh(mix * 1.6) / np.tanh(1.6) * 0.9
+    return mix.astype(np.float32), starts

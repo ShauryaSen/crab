@@ -33,11 +33,12 @@ def main():
     score, meta = compose(plan)
     for w in meta.get("warnings", []):
         print("WARNING (plan):", w)
-    audio, starts = music.synth_track([tuple(s) for s in plan["sections"]], bpm=plan["bpm"])
-    wav = out / f"{plan['name']}.wav"
+    synth = music.synth_rave if plan.get("music", "rave") == "rave" else music.synth_track
+    audio, starts = synth([tuple(s) for s in plan["sections"]], bpm=plan["bpm"])
+    wav = out / f"{plan['name']}_{plan.get('music', 'rave')}.wav"
     music.write_wav(str(wav), audio)
 
-    cache = out / f"{plan['name']}_n{score.n}_sim.pkl"
+    cache = out / f"{plan.get('sim_name', plan['name'])}_n{score.n}_sim.pkl"
     if cache.exists() and not args.resim:
         logs = pickle.loads(cache.read_bytes())
     else:
