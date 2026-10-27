@@ -77,6 +77,8 @@ def shape_points(act: dict, n: int) -> np.ndarray:
             pts = F.circle(n, 3.0)
         elif shape == "spiral":
             pts = F.spiral(n, SPACING)
+        elif shape == "crab":
+            pts = F.crab(n, 8.0)
         elif shape == "grid":
             pts = F.grid(n, SPACING)
         elif shape == "rows":
@@ -161,6 +163,11 @@ def compose(plan: dict) -> tuple[Score, dict]:
             score.lights.append(Light(t, new_cols, np.ones(n), fade=dur * 0.8))
             cols, glow, pos = new_cols, np.ones(n), targets
             meta["formations"].append({"bar": act["bar"], "label": act.get("text", act.get("shape"))})
+        elif do == "shift":
+            # The whole formation walks together, keeping its shape (no re-assignment).
+            targets = pos + np.asarray(act["by"], dtype=float)
+            score.cues.append(Cue(t, "move", dur, targets=targets, yaw=FACE_CAMERA))
+            pos = targets
         elif do in ("dance", "gesture"):
             move = act["move"]
             sf = act.get("start_frame")

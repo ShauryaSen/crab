@@ -1,29 +1,183 @@
 {
   "name": "stadium_x",
   "prompt": "crabs: line up, spiral, form a giant X for X, then dance it out",
-  "n": 36, "style": "stadium", "bpm": 128, "seed": 2,
-  "sections": [["intro", 4], ["build", 4], ["drop", 8], ["outro", 4]],
+  "n": 36,
+  "style": "stadium",
+  "bpm": 128,
+  "seed": 2,
+  "sections": [
+    [
+      "intro",
+      4
+    ],
+    [
+      "build",
+      4
+    ],
+    [
+      "drop",
+      8
+    ],
+    [
+      "outro",
+      4
+    ]
+  ],
   "acts": [
-    {"bar": 0, "do": "color", "palette": "crab", "fade": 0.1},
-    {"bar": 1, "do": "form", "shape": "grid", "bars": 2.5, "palette": "crab"},
-    {"bar": 4, "do": "form", "shape": "spiral", "bars": 3.5, "palette": "ocean"},
-    {"bar": 8, "do": "form", "text": "X", "bars": 2.5, "palette": "white"},
-    {"bar": 10.5, "do": "dance", "move": "dance_waist", "bars": 3.5, "ripple": "left", "pulse": false},
-    {"bar": 14, "do": "color", "palette": "rainbow", "fade": 0.5},
-    {"bar": 14, "do": "dance", "move": "dance", "bars": 3, "pulse": false},
-    {"bar": 17, "do": "gesture", "move": "gesture_bow", "bars": 3}
+    {
+      "bar": 0,
+      "do": "color",
+      "palette": "crab",
+      "fade": 0.1
+    },
+    {
+      "bar": 1,
+      "do": "form",
+      "shape": "grid",
+      "bars": 2.5,
+      "palette": "crab"
+    },
+    {
+      "bar": 4,
+      "do": "form",
+      "shape": "spiral",
+      "bars": 3.5,
+      "palette": "ocean"
+    },
+    {
+      "bar": 8,
+      "do": "form",
+      "text": "X",
+      "bars": 2.5,
+      "palette": "white"
+    },
+    {
+      "bar": 10.5,
+      "do": "dance",
+      "move": "dance_waist",
+      "bars": 3.5,
+      "ripple": "left",
+      "pulse": false
+    },
+    {
+      "bar": 14,
+      "do": "color",
+      "palette": "rainbow",
+      "fade": 0.5
+    },
+    {
+      "bar": 14,
+      "do": "dance",
+      "move": "dance",
+      "bars": 3,
+      "pulse": false
+    },
+    {
+      "bar": 17,
+      "do": "gesture",
+      "move": "gesture_bow",
+      "bars": 3
+    }
   ],
   "camera": [
-    [0.0,  [0, 0, 0], 12.0, 90, -50],
-    [7.5,  [0, 0, 0], 10.0, 60, -65],
-    [15.0, [0, 0, 0], 11.0, 90, -85],
-    [20.0, [0, 0, 0.1], 7.0, 120, -35],
-    [26.0, [0, 0, 0.1], 5.5, 75, -22],
-    [32.0, [0, 0, 0], 9.0, 90, -55],
-    [37.5, [0, 0, 0], 11.0, 90, -70]
+    [
+      0.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.55,
+      90,
+      -50
+    ],
+    [
+      7.5,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      60,
+      -65
+    ],
+    [
+      15.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -85
+    ],
+    [
+      20.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.55,
+      120,
+      -35
+    ],
+    [
+      26.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.55,
+      75,
+      -22
+    ],
+    [
+      32.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.55,
+      90,
+      -55
+    ],
+    [
+      37.5,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -70
+    ]
   ],
   "prompt_hold": 6.0,
   "captions": [
-    {"t0": 33.0, "t1": 37.5, "y": 0.72, "lines": [["36 robot crabs, 36 physics sims,", 0.6], ["one prompt.", 0.6], ["Reply with a shape for the next show", 0.55]]}
+    {
+      "t0": 33.0,
+      "t1": 37.5,
+      "y": 0.72,
+      "lines": [
+        [
+          "36 robot crabs, 36 physics sims,",
+          0.6
+        ],
+        [
+          "one prompt.",
+          0.6
+        ],
+        [
+          "Reply with a shape for the next show",
+          0.55
+        ]
+      ]
+    }
   ]
 }

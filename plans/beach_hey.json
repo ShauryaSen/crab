@@ -1,27 +1,170 @@
 {
   "name": "beach_hey",
   "prompt": "crabs: line up on the beach, do a stadium wave, then say HEY",
-  "n": 42, "style": "beach", "bpm": 128, "seed": 4,
-  "sections": [["intro", 4], ["build", 4], ["drop", 8], ["outro", 4]],
+  "n": 42,
+  "style": "beach",
+  "bpm": 128,
+  "seed": 4,
+  "sections": [
+    [
+      "intro",
+      4
+    ],
+    [
+      "build",
+      4
+    ],
+    [
+      "drop",
+      8
+    ],
+    [
+      "outro",
+      4
+    ]
+  ],
   "acts": [
-    {"bar": 0, "do": "color", "palette": "crab", "fade": 0.1},
-    {"bar": 0.5, "do": "form", "shape": "rows", "rows": 3, "bars": 3.5, "palette": "gold"},
-    {"bar": 4, "do": "gesture", "move": "gesture_paw", "bars": 4, "ripple": "left", "ripple_s": 2.5, "pulse": false},
-    {"bar": 8, "do": "form", "text": "HEY", "bars": 4, "palette": "crab"},
-    {"bar": 12, "do": "dance", "move": "dance_dream_wings", "bars": 4, "ripple": "left", "ripple_s": 1.0, "pulse": false},
-    {"bar": 16, "do": "gesture", "move": "gesture_hello", "bars": 3}
+    {
+      "bar": 0,
+      "do": "color",
+      "palette": "crab",
+      "fade": 0.1
+    },
+    {
+      "bar": 0.5,
+      "do": "form",
+      "shape": "rows",
+      "rows": 3,
+      "bars": 3.5,
+      "palette": "gold"
+    },
+    {
+      "bar": 4,
+      "do": "gesture",
+      "move": "gesture_paw",
+      "bars": 4,
+      "ripple": "left",
+      "ripple_s": 2.5,
+      "pulse": false
+    },
+    {
+      "bar": 8,
+      "do": "form",
+      "text": "HEY",
+      "bars": 4,
+      "palette": "crab"
+    },
+    {
+      "bar": 12,
+      "do": "dance",
+      "move": "dance_dream_wings",
+      "bars": 4,
+      "ripple": "left",
+      "ripple_s": 1.0,
+      "pulse": false
+    },
+    {
+      "bar": 16,
+      "do": "gesture",
+      "move": "gesture_hello",
+      "bars": 3
+    }
   ],
   "camera": [
-    [0.0,  [0, 0, 0], 16.0, 90, -60],
-    [7.5,  [-3, 0, 0.1], 8.0, 60, -25],
-    [15.0, [0, 0, 0], 17.0, 90, -80],
-    [22.5, [0, 0, 0], 17.0, 90, -78],
-    [26.0, [-3, 0, 0.1], 6.0, 70, -20],
-    [31.0, [3, 0, 0.1], 6.0, 110, -20],
-    [37.5, [0, 0, 0], 17.0, 90, -80]
+    [
+      0.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -60
+    ],
+    [
+      7.5,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.55,
+      60,
+      -25
+    ],
+    [
+      15.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -80
+    ],
+    [
+      22.5,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -78
+    ],
+    [
+      26.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.55,
+      70,
+      -20
+    ],
+    [
+      31.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.55,
+      110,
+      -20
+    ],
+    [
+      37.5,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -80
+    ]
   ],
   "prompt_hold": 6.0,
   "captions": [
-    {"t0": 33.0, "t1": 37.5, "y": 0.70, "lines": [["Real RL policies. Real physics.", 0.62], ["What should they spell next?", 0.62]]}
+    {
+      "t0": 33.0,
+      "t1": 37.5,
+      "y": 0.7,
+      "lines": [
+        [
+          "Real RL policies. Real physics.",
+          0.62
+        ],
+        [
+          "What should they spell next?",
+          0.62
+        ]
+      ]
+    }
   ]
 }

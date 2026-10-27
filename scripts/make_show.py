@@ -19,6 +19,7 @@ def main():
     ap.add_argument("--style")
     ap.add_argument("--out", default="out")
     ap.add_argument("--resim", action="store_true")
+    ap.add_argument("--preview", action="store_true", help="contact sheet only")
     args = ap.parse_args()
 
     plan = json.loads(Path(args.plan).read_text())
@@ -34,7 +35,7 @@ def main():
     wav = out / f"{plan['name']}.wav"
     music.write_wav(str(wav), audio)
 
-    cache = out / f"{plan['name']}_sim.pkl"
+    cache = out / f"{plan['name']}_n{score.n}_sim.pkl"
     if cache.exists() and not args.resim:
         logs = pickle.loads(cache.read_bytes())
     else:
@@ -44,8 +45,15 @@ def main():
     d, when, pair = collisions(logs)
     print(f"closest approach {d:.2f} m at t={when:.1f}s between crabs {pair}")
 
+    if args.preview:
+        import numpy as np
+        from crabshow.video import preview_sheet
+        times = list(np.linspace(0.5, score.duration - 0.5, 12))
+        print("preview", preview_sheet(score, logs, plan, out / f"{name}_preview.png", times))
+        return
+
     t = time.time()
-    w, h = (540, 960) if args.draft else (1080, 1920)
+    w, h = (540, 676) if args.draft else (1080, 1350)
     path = render_video(score, logs, plan, out / f"{name}.mp4", wav, width=w, height=h)
     print(f"rendered {path} in {time.time()-t:.0f}s")
 

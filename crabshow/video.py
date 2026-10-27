@@ -16,19 +16,63 @@ SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 
 def camera_at(keys, t):
-    """keys: list of (t, lookat(3), distance, azimuth, elevation); smooth interpolation."""
+    """keys: list of (t, offset(3), zoom, azimuth, elevation[, follow]); smooth interpolation.
+
+    follow (default 1) is how much the look-at point tracks the swarm's centre; 0 holds the
+    camera on the world origin so the whole swarm can be seen travelling.
+    """
+    keys = [list(k) + [1.0] * (6 - len(k)) for k in keys]
     if t <= keys[0][0]:
-        k = keys[0]
-        return k[1], k[2], k[3], k[4]
+        return tuple(keys[0][1:])
     for a, b in zip(keys, keys[1:]):
         if a[0] <= t <= b[0]:
             s = (t - a[0]) / max(b[0] - a[0], 1e-9)
             s = s * s * (3 - 2 * s)
-            lerp = lambda x, y: np.asarray(x) * (1 - s) + np.asarray(y) * s
-            return lerp(a[1], b[1]), float(lerp(a[2], b[2])), float(lerp(a[3], b[3])), \
-                float(lerp(a[4], b[4]))
-    k = keys[-1]
-    return k[1], k[2], k[3], k[4]
+            return tuple(np.asarray(x) * (1 - s) + np.asarray(y) * s if isinstance(x, list)
+                         else float(x * (1 - s) + y * s) for x, y in zip(a[1:], b[1:]))
+    return tuple(keys[-1][1:])
+
+
+def auto_track(logs, duration, width, height, fps=10, sigma_s=1.2, margin=1.25):
+    """Smoothed swarm centroid and fit distance over time, sampled at `fps`."""
+    ts = np.arange(0, duration + 1 / fps, 1 / fps)
+    cen, rx, ry = [], [], []
+    for t in ts:
+        xy = np.array([q[:2] for q in sample(logs, t)])
+        lo, hi = xy.min(0) - 0.35, xy.max(0) + 0.35
+        cen.append((lo + hi) / 2)
+        rx.append((hi[0] - lo[0]) / 2)
+        ry.append((hi[1] - lo[1]) / 2)
+    k = int(sigma_s * fps * 3)
+    g = np.exp(-0.5 * (np.arange(-k, k + 1) / (sigma_s * fps)) ** 2)
+    g /= g.sum()
+
+    def smooth(x):
+        x = np.asarray(x, dtype=float)
+        pad = np.concatenate([np.repeat(x[:1], k, 0), x, np.repeat(x[-1:], k, 0)])
+        if x.ndim == 1:
+            return np.convolve(pad, g, mode="valid")
+        return np.stack([np.convolve(pad[:, j], g, mode="valid") for j in range(x.shape[1])], 1)
+
+    vfov = np.radians(45.0)
+    hfov = 2 * np.arctan(np.tan(vfov / 2) * width / height)
+    dist = np.maximum(smooth(rx) / np.tan(hfov / 2), smooth(ry) / np.tan(vfov / 2)) * margin
+    return ts, smooth(cen), dist
+
+
+def camera_track(plan, logs, duration, width, height):
+    """Camera keys are [t, [dx, dy, dz], zoom, azimuth, elevation]; the look-at point and
+    distance follow the swarm automatically, the keys add offsets and framing."""
+    ts, cen, dist = auto_track(logs, duration, width, height)
+    keys = plan["camera"]
+
+    def at(t):
+        off, zoom, az, el, follow = camera_at(keys, t)
+        i = min(int(round(t * 10)), len(ts) - 1)
+        look = follow * np.array([cen[i][0], cen[i][1], 0.0]) + np.asarray(off)
+        # Lower elevations see the formation foreshortened; pull back less.
+        return look, float(dist[i] * zoom), az, el
+    return at
 
 
 def bloom(img: Image.Image, strength=0.9, radius=18, threshold=110) -> Image.Image:
@@ -99,17 +143,16 @@ def overlay_caption(img: Image.Image, lines, alpha=1.0, y_frac=0.80, size_frac=0
 
 
 def _render_chunk(args):
-    (k0, k1, fps, score, logs, plan, outdir, width, height) = args
+    (k0, k1, fps, score, logs, plan, outdir, width, height, cam) = args
     from .render import Renderer
 
     R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height)
-    keys = [(c[0], c[1], c[2], c[3], c[4]) for c in plan["camera"]]
     for k in range(k0, k1):
         t = k / fps
         R.set_poses(sample(logs, t))
         cols, glow = lights_at(score, t)
         R.set_lights(cols, glow)
-        img = Image.fromarray(R.frame(*camera_at(keys, t)))
+        img = Image.fromarray(R.frame(*cam[k]))
         if R.style.glow > 0:
             img = bloom(img)
         img = overlay_prompt(img, plan["prompt"], t, hold_until=plan.get("prompt_hold", 6.0))
@@ -129,8 +172,10 @@ def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=108
     frames_dir = frames_dir.parent / (frames_dir.name + "_frames")
     frames_dir.mkdir(parents=True, exist_ok=True)
     n_frames = int(score.duration * fps)
+    at = camera_track(plan, logs, score.duration, width, height)
+    cam = [at(k / fps) for k in range(n_frames)]
     chunks = np.linspace(0, n_frames, procs * 4 + 1).astype(int)
-    jobs = [(a, b, fps, score, logs, plan, frames_dir, width, height)
+    jobs = [(a, b, fps, score, logs, plan, frames_dir, width, height, cam)
             for a, b in zip(chunks, chunks[1:]) if b > a]
     # One chunk per worker process: software GL contexts do not survive being reused.
     with mp.get_context("spawn").Pool(procs, maxtasksperchild=1) as pool:
@@ -143,4 +188,28 @@ def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=108
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium",
             "-movflags", "+faststart", str(out_path)]
     subprocess.run(cmd, check=True)
+    return out_path
+
+
+def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
+    """A contact sheet of a few frames, for checking framing before a full render."""
+    from .render import Renderer
+
+    at = camera_track(plan, logs, score.duration, width, height)
+    R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height)
+    tiles = []
+    for t in times:
+        R.set_poses(sample(logs, t))
+        R.set_lights(*lights_at(score, t))
+        img = Image.fromarray(R.frame(*at(t)))
+        if R.style.glow > 0:
+            img = bloom(img, radius=8)
+        ImageDraw.Draw(img).text((6, 6), f"t={t:.1f}s", fill=(255, 255, 0))
+        tiles.append(img)
+    cols = 6
+    rows = (len(tiles) + cols - 1) // cols
+    sheet = Image.new("RGB", (cols * width, rows * height))
+    for k, im in enumerate(tiles):
+        sheet.paste(im, ((k % cols) * width, (k // cols) * height))
+    sheet.save(out_path)
     return out_path

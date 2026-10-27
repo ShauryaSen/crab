@@ -1,0 +1,212 @@
+{
+  "name": "giant_crab",
+  "prompt": "crabs: become one giant crab, scuttle sideways, dance, then wave hello",
+  "n": 64,
+  "style": "night",
+  "bpm": 128,
+  "seed": 5,
+  "sections": [
+    [
+      "intro",
+      4
+    ],
+    [
+      "build",
+      4
+    ],
+    [
+      "drop",
+      8
+    ],
+    [
+      "outro",
+      4
+    ]
+  ],
+  "acts": [
+    {
+      "bar": 0.5,
+      "do": "light_up",
+      "palette": "crab",
+      "bars": 3
+    },
+    {
+      "bar": 4,
+      "do": "form",
+      "shape": "crab",
+      "bars": 4,
+      "palette": "crab"
+    },
+    {
+      "bar": 8,
+      "do": "shift",
+      "by": [
+        2.2,
+        0
+      ],
+      "bars": 1.5
+    },
+    {
+      "bar": 9.5,
+      "do": "shift",
+      "by": [
+        -4.4,
+        0
+      ],
+      "bars": 2.5
+    },
+    {
+      "bar": 12,
+      "do": "shift",
+      "by": [
+        2.2,
+        0
+      ],
+      "bars": 1
+    },
+    {
+      "bar": 13,
+      "do": "dance",
+      "move": "dance_brazilian",
+      "bars": 3,
+      "ripple": "center"
+    },
+    {
+      "bar": 16,
+      "do": "color",
+      "palette": "gold",
+      "fade": 0.5
+    },
+    {
+      "bar": 16,
+      "do": "gesture",
+      "move": "gesture_hello",
+      "bars": 2.5
+    },
+    {
+      "bar": 18.5,
+      "do": "lights_out",
+      "bars": 1.5
+    }
+  ],
+  "camera": [
+    [
+      0.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -85,
+      1
+    ],
+    [
+      7.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -78,
+      1
+    ],
+    [
+      14.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.45,
+      90,
+      -75,
+      0
+    ],
+    [
+      22.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.45,
+      90,
+      -80,
+      0
+    ],
+    [
+      24.0,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.5,
+      70,
+      -25,
+      1
+    ],
+    [
+      29.5,
+      [
+        0,
+        0,
+        0.1
+      ],
+      0.5,
+      110,
+      -30,
+      1
+    ],
+    [
+      31.0,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.0,
+      90,
+      -80,
+      1
+    ],
+    [
+      37.5,
+      [
+        0,
+        0,
+        0.05
+      ],
+      1.05,
+      90,
+      -85,
+      1
+    ]
+  ],
+  "prompt_hold": 6.5,
+  "captions": [
+    {
+      "t0": 33.5,
+      "t1": 37.5,
+      "y": 0.74,
+      "lines": [
+        [
+          "64 robot crabs. 64 physics sims.",
+          0.62
+        ],
+        [
+          "One prompt. Nothing keyframed.",
+          0.62
+        ],
+        [
+          "Reply with what they should become next",
+          0.52
+        ]
+      ]
+    }
+  ]
+}

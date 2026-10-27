@@ -125,3 +125,26 @@ def fit_spacing(points: np.ndarray, spacing_m: float) -> np.ndarray:
     """Scale a formation about its centre so its closest pair is exactly spacing_m apart."""
     c = points.mean(0)
     return c + (points - c) * (spacing_m / min_spacing(points))
+
+
+def crab(n: int, width_m: float, seed: int = 0) -> np.ndarray:
+    """A giant crab icon: wide body, two big open pincers on short arms. Filled.
+
+    Thin features vanish at swarm resolution, so the silhouette is all chunky parts.
+    """
+    W, H = 400, 300
+    img = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(img)
+    d.ellipse([105, 140, 295, 255], fill=255)                     # body
+    for s in (-1, 1):
+        d.line([(200 + s * 70, 170), (200 + s * 115, 120)], fill=255, width=34)   # arm
+        px, py = 200 + s * 125, 75
+        d.ellipse([px - 52, py - 52, px + 52, py + 52], fill=255)                 # claw
+        # the pincer gap: a wedge cut out, opening upward toward the centre
+        gap = (-120, -60) if s < 0 else (-120, -60)
+        d.pieslice([px - 60, py - 60, px + 60, py + 60], start=gap[0] + (0 if s < 0 else 0),
+                   end=gap[1], fill=0)
+        for k in range(3):                                                        # leg stubs
+            y0 = 215 + k * 17
+            d.line([(200 + s * 85, y0), (200 + s * 130, y0 + 18)], fill=255, width=22)
+    return _mask_to_points(np.asarray(img) > 127, n, width_m, seed)
