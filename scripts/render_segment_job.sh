@@ -13,6 +13,6 @@ BR=$(printf "seg/%s-%05d" "$NAME" "$A")
 git checkout -q -B "$BR"
 mkdir -p segments && cp "$SEG" segments/
 git add -f segments/
-git commit -q -m "render segment $NAME $A-$B"
+git -c user.name="Shaurya Sen" -c user.email="66851598+ShauryaSen@users.noreply.github.com" commit -q -m "render segment $NAME $A-$B"
 for i in 1 2 3 4; do git push -q -f -u origin "$BR" && break || sleep $((2**i)); done
 echo "pushed $BR"
