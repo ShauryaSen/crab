@@ -59,3 +59,17 @@ variable rate.
   `trained/<task>-tempo/` on the branch `spark-results`. Never commit `.pt` files or logs.
 - A 10-second MP4 of `play.py --headless --video` at 0.8x and 1.25x is welcome. Keep it
   under 10 MB.
+
+## Job 2 (after Job 1): dances and jumps on uneven sand
+
+`crabshow/terrain.py` makes dunes. Walking on them works up to an amplitude of about
+0.08 m (16° slopes). The `jump` and `dance_*` policies were trained on flat ground, so
+a few crabs land badly on a slope and end up stuck in a crouch.
+
+- Fine-tune `jump` and `dance_brazilian` with terrain randomisation: a heightfield of
+  sine swells with amplitude `U(0, 0.06)` m and wavelength `U(2.5, 5)` m, matching
+  `terrain.py`. Jumper's `scenes/rough.py` shows how scenes plug in. Resume from the
+  shipped checkpoints.
+- Acceptance: on dunes with amplitude 0.05, 50/50 jumps and 5-second dances end standing
+  at a base height within 0.02 m of nominal.
+- Hand back the same way as Job 1, under `trained/<task>-dunes/`.
