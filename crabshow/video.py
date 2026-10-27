@@ -187,7 +187,12 @@ def _render_chunk(args):
 
 
 def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=1080,
-                 height=1920, procs=4):
+                 height=1920, procs=None, frames=None):
+    """Render to an MP4. `frames=(a, b)` renders only frames [a, b) as a silent segment,
+    so one video can be split across machines and joined with `join_segments`."""
+    import os
+
+    procs = procs or os.cpu_count() or 4
     out_path = Path(out_path)
     frames_dir = out_path.with_suffix("")
     frames_dir = frames_dir.parent / (frames_dir.name + "_frames")
@@ -195,16 +200,19 @@ def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=108
     n_frames = int(score.duration * fps)
     at = camera_track(plan, logs, score.duration, width, height)
     cam = [at(k / fps) for k in range(n_frames)]
-    chunks = np.linspace(0, n_frames, procs * 4 + 1).astype(int)
+    f0, f1 = frames or (0, n_frames)
+    f1 = min(f1, n_frames)
+    chunks = np.linspace(f0, f1, procs * 4 + 1).astype(int)
     jobs = [(a, b, fps, score, logs, plan, frames_dir, width, height, cam)
             for a, b in zip(chunks, chunks[1:]) if b > a]
     # One chunk per worker process: software GL contexts do not survive being reused.
     with mp.get_context("spawn").Pool(procs, maxtasksperchild=1) as pool:
         for _ in pool.imap_unordered(_render_chunk, jobs):
             pass
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i",
-           str(frames_dir / "f%05d.png")]
-    if audio_path:
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps),
+           "-start_number", str(f0), "-i", str(frames_dir / "f%05d.png"),
+           "-frames:v", str(f1 - f0)]
+    if audio_path and not frames:
         cmd += ["-i", str(audio_path), "-c:a", "aac", "-b:a", "192k", "-shortest"]
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium",
             "-movflags", "+faststart", str(out_path)]
@@ -243,4 +251,16 @@ def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
     for k, im in enumerate(tiles):
         sheet.paste(im, ((k % cols) * width, (k // cols) * height))
     sheet.save(out_path)
+    return out_path
+
+
+def join_segments(segments, audio_path, out_path):
+    """Concatenate silent segments (same encode settings) and add the soundtrack."""
+    lst = Path(out_path).with_suffix(".txt")
+    lst.write_text("".join(f"file '{Path(p).resolve()}'\n" for p in segments))
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                    "-i", str(lst), "-i", str(audio_path), "-c:v", "copy", "-c:a", "aac",
+                    "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(out_path)],
+                   check=True)
+    lst.unlink()
     return out_path

@@ -20,6 +20,7 @@ def main():
     ap.add_argument("--out", default="out")
     ap.add_argument("--resim", action="store_true")
     ap.add_argument("--preview", action="store_true", help="contact sheet only")
+    ap.add_argument("--frames", help="a:b -- render only frames [a, b) as a silent segment")
     args = ap.parse_args()
 
     plan = json.loads(Path(args.plan).read_text())
@@ -57,7 +58,13 @@ def main():
 
     t = time.time()
     w, h = (540, 676) if args.draft else (1080, 1350)
-    path = render_video(score, logs, plan, out / f"{name}.mp4", wav, width=w, height=h)
+    if args.frames:
+        a, b = (int(x) for x in args.frames.split(":"))
+        seg = out / "segments" / f"{name}_{a:05d}_{b:05d}.mp4"
+        seg.parent.mkdir(exist_ok=True)
+        path = render_video(score, logs, plan, seg, None, width=w, height=h, frames=(a, b))
+    else:
+        path = render_video(score, logs, plan, out / f"{name}.mp4", wav, width=w, height=h)
     print(f"rendered {path} in {time.time()-t:.0f}s")
 
 
