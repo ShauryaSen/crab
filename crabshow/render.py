@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 import mujoco
 import numpy as np
 
-from .runtime import ROBOT_XML
 
 SHELL_RGBA = (0.85, 0.08, 0.05)   # the red parts of the stock model
 
@@ -38,7 +37,7 @@ class Style:
 STYLES = {
     "night": Style(
         "night", sky_top=(0.01, 0.02, 0.06), sky_bottom=(0.0, 0.0, 0.01),
-        floor_rgb1=(0.10, 0.09, 0.08), floor_rgb2=(0.09, 0.08, 0.07), floor_texture="flat",
+        floor_rgb1=(0.20, 0.18, 0.17), floor_rgb2=(0.12, 0.11, 0.11), floor_texture="checker", floor_scale=0.5,
         floor_reflect=0.25, ambient=0.05, headlight=0.05, key_light=0.25, glow=0.85,
         haze=(0.02, 0.03, 0.08, 1)),
     "stadium": Style(
@@ -53,7 +52,9 @@ STYLES = {
 
 
 def build_scene(n: int, colors, style: Style, width=1080, height=1920):
-    world = mujoco.MjSpec()
+    from .lod import swarm_xml
+
+    world = mujoco.MjSpec.from_string(swarm_xml(n))
     world.compiler.degree = False
     world.option.timestep = 0.001
     world.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
@@ -94,20 +95,9 @@ def build_scene(n: int, colors, style: Style, width=1080, height=1920):
         world.worldbody.add_light(pos=list(p), dir=list(d), diffuse=list(c), castshadow=False)
 
     for i in range(n):
-        robot = mujoco.MjSpec.from_file(str(ROBOT_XML))
-        rgb = colors[i]
-        shell = robot.add_material(name="shell", rgba=[*rgb, 1.0], emission=style.glow,
-                                   specular=0.6, shininess=0.8)
-        for g in robot.geoms:
-            g.contype = g.conaffinity = 0
-            if g.classname.name == "collision" or "col" in g.name:
-                g.group = 3   # hidden
-                continue
-            if np.allclose(g.rgba[:3], SHELL_RGBA, atol=0.01):
-                g.rgba = [0.5, 0.5, 0.5, 1.0]    # default rgba: the material's colour wins
-                g.material = shell.name
-        frame = world.worldbody.add_frame()
-        frame.attach_body(robot.body("base_link"), f"c{i}_", "")
+        m = world.material(f"c{i}_shell")
+        m.rgba = [*colors[i], 1.0]
+        m.emission = style.glow
     model = world.compile()
     return model
 
@@ -120,7 +110,6 @@ class Renderer:
         self.r = mujoco.Renderer(self.model, height, width)
         self.cam = mujoco.MjvCamera()
         self.opt = mujoco.MjvOption()
-        self.opt.geomgroup[:] = [1, 0, 1, 0, 0, 0]
         self.n = n
         self.nq1 = (self.model.nq) // n
         self.shell = np.array([self.model.material(f"c{i}_shell").id for i in range(n)])

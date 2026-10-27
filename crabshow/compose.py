@@ -26,7 +26,7 @@ import colorsys
 import numpy as np
 
 from . import formation as F
-from .show import Cue, Light, Score
+from .show import Cue, Light, Score, peak_speed
 
 SPACING = 0.78          # metres between crab centres in a formation
 FACE_CAMERA = -np.pi / 2
@@ -85,6 +85,13 @@ def shape_points(act: dict, n: int) -> np.ndarray:
 
 
 def scatter(n: int, radius: float, seed: int = 1) -> np.ndarray:
+    """Loose, irregular start positions: a jittered grid (looks random, packs safely)."""
+    rng = np.random.default_rng(seed)
+    g = F.grid(n, SPACING * 1.35)
+    return g + rng.uniform(-1, 1, g.shape) * SPACING * 0.15
+
+
+def scatter_random(n: int, radius: float, seed: int = 1) -> np.ndarray:
     """Random start positions with no two closer than SPACING."""
     rng = np.random.default_rng(seed)
     pts = []
@@ -129,8 +136,19 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 score.lights.append(Light(t + k * span / n, cols.copy(), glow.copy(), fade=0.08))
         elif do == "form":
             goal = shape_points(act, n)
+            # Shift the new shape to where the swarm already is, then assign.
+            for _ in range(3):
+                perm = F.assign(pos, goal)
+                goal = goal + (pos - goal[perm]).mean(0)
+            goal = goal - goal.mean(0) * act.get("recentre", 0.5)
             perm = F.assign(pos, goal)
             targets = goal[perm]
+            far = float(np.linalg.norm(targets - pos, axis=1).max())
+            vpk = peak_speed(far, dur)
+            meta.setdefault("warnings", [])
+            if vpk > 0.9:
+                meta["warnings"].append(f"bar {act['bar']}: longest walk {far:.1f} m needs "
+                                        f"{vpk:.2f} m/s peak; give it more bars")
             score.cues.append(Cue(t, "move", dur, targets=targets, yaw=FACE_CAMERA))
             new_cols = np.array(PALETTES[act.get("palette", "white")](targets, n))
             score.lights.append(Light(t, new_cols, np.ones(n), fade=dur * 0.8))

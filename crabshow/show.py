@@ -46,14 +46,29 @@ class Score:
     duration: float = 0.0
 
 
-def _smoothstep(s):
-    s = np.clip(s, 0.0, 1.0)
-    return s * s * (3 - 2 * s)
+RAMP = 0.25   # fraction of a move spent accelerating (and again decelerating)
 
 
-def _dsmooth(s):
+def _trap(s, r=RAMP):
+    """Trapezoidal velocity profile: position fraction (0..1) at time fraction s."""
     s = np.clip(s, 0.0, 1.0)
-    return 6 * s * (1 - s)
+    vpk = 1.0 / (1.0 - r)
+    if s < r:
+        return 0.5 * vpk * s * s / r
+    if s > 1 - r:
+        e = 1 - s
+        return 1 - 0.5 * vpk * e * e / r
+    return 0.5 * vpk * r + vpk * (s - r)
+
+
+def _dtrap(s, r=RAMP):
+    s = np.clip(s, 0.0, 1.0)
+    vpk = 1.0 / (1.0 - r)
+    return vpk * min(1.0, s / r, (1 - s) / r)
+
+
+def peak_speed(dist, dur):
+    return dist / dur / (1.0 - RAMP)
 
 
 def _wrap(a):
@@ -66,30 +81,30 @@ def simulate_crab(args):
     from .runtime import Crab
 
     c = Crab(*score.start[i], yaw=score.start_yaw, seed=i)
-    pos0 = score.start[i].copy()
+    home = score.start[i].copy()     # where this crab is meant to be standing
     for cue in score.cues:
-        # Fill any gap before this cue by standing still.
+        # Fill any gap before this cue by standing at (and creeping back to) home.
         gap = cue.t - c.t
         if gap > 0.01:
-            hold_xy = c.pos.copy()
-            c.run_walk(gap, _hold_cmd(hold_xy, cue.yaw))
+            c.run_walk(gap, _hold_cmd(home, cue.yaw))
         if cue.kind == "move":
             a, b = c.pos.copy(), cue.targets[i]
             c.run_walk(cue.dur, _move_cmd(a, b, cue.t, cue.dur, cue.yaw))
+            home = b.copy()
         elif cue.kind == "hold":
-            c.run_walk(cue.dur, _hold_cmd(c.pos.copy(), cue.yaw))
+            c.run_walk(cue.dur, _hold_cmd(home, cue.yaw))
         elif cue.kind == "clip":
             delay = float(cue.offsets[i]) if cue.offsets is not None else 0.0
             if delay > 0.01:
-                c.run_walk(delay, _hold_cmd(c.pos.copy(), cue.yaw))
+                c.run_walk(delay, _hold_cmd(home, cue.yaw))
             c.run_clip(cue.policy, cue.dur - delay, start_frame=cue.start_frame)
     end = score.duration - c.t
     if end > 0.01:
-        c.run_walk(end, _hold_cmd(c.pos.copy(), score.cues[-1].yaw if score.cues else 0.0))
+        c.run_walk(end, _hold_cmd(home, score.cues[-1].yaw if score.cues else 0.0))
     return np.array(c.log_t), np.array(c.log_qpos)
 
 
-def _body_cmd(crab, v_world, yaw_des, vmax=0.7):
+def _body_cmd(crab, v_world, yaw_des, vmax=0.95):
     sp = np.linalg.norm(v_world)
     if sp > vmax:
         v_world = v_world * (vmax / sp)
@@ -104,8 +119,8 @@ def _body_cmd(crab, v_world, yaw_des, vmax=0.7):
 def _move_cmd(a, b, t0, dur, yaw_des):
     def f(crab):
         s = (crab.t - t0) / dur
-        ref = a + (b - a) * _smoothstep(s)
-        vff = (b - a) * _dsmooth(s) / dur
+        ref = a + (b - a) * _trap(s)
+        vff = (b - a) * _dtrap(s) / dur
         return _body_cmd(crab, vff + 2.0 * (ref - crab.pos), yaw_des)
     return f
 

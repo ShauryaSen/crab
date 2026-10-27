@@ -2,26 +2,26 @@
   "name": "heart_hi",
   "prompt": "crabs: light up, make a heart, go wild on the drop, then spell HI",
   "n": 36, "style": "night", "bpm": 128, "seed": 1,
-  "sections": [["intro", 4], ["build", 4], ["drop", 8], ["outro", 2]],
+  "sections": [["intro", 4], ["build", 4], ["drop", 8], ["outro", 4]],
   "acts": [
     {"bar": 0.5, "do": "light_up", "palette": "rainbow", "bars": 3},
-    {"bar": 4, "do": "form", "shape": "heart", "bars": 3.5, "palette": "love"},
+    {"bar": 4, "do": "form", "shape": "heart", "filled": true, "bars": 3.75, "palette": "love"},
     {"bar": 8, "do": "dance", "move": "dance_brazilian", "bars": 4, "ripple": "center"},
-    {"bar": 12, "do": "form", "text": "HI", "bars": 2.5, "palette": "ice"},
-    {"bar": 14.5, "do": "gesture", "move": "gesture_hello", "bars": 2},
-    {"bar": 16.5, "do": "lights_out", "bars": 1.5}
+    {"bar": 12, "do": "form", "text": "HI", "bars": 3, "palette": "ice"},
+    {"bar": 15, "do": "gesture", "move": "gesture_hello", "bars": 2.5},
+    {"bar": 18, "do": "lights_out", "bars": 2}
   ],
   "camera": [
-    [0.0,  [0, 0, 0], 14.0, 90, -80],
-    [7.0,  [0, 0, 0], 11.5, 90, -72],
+    [0.0,  [0, 0, 0], 13.0, 90, -85],
+    [7.0,  [0, 0, 0], 11.0, 90, -75],
     [15.0, [0, 0, 0], 10.0, 90, -62],
-    [19.0, [0, 0, 0.1], 6.5, 70, -30],
-    [22.5, [0, 0, 0.1], 7.5, 110, -40],
-    [26.5, [0, 0, 0], 11.0, 90, -75],
-    [33.75, [0, 0, 0], 12.0, 90, -80]
+    [19.0, [0, 0, 0.1], 6.0, 65, -28],
+    [22.5, [0, 0, 0.1], 7.0, 115, -38],
+    [27.0, [0, 0, 0], 11.0, 90, -78],
+    [37.5, [0, 0, 0], 12.5, 90, -82]
   ],
   "prompt_hold": 6.5,
   "captions": [
-    {"t0": 30.2, "t1": 33.75, "y": 0.70, "lines": [["Every crab is a trained RL policy", 0.62], ["in real physics. Nothing is keyframed.", 0.62], ["Reply with a word + we'll make them dance it", 0.55]]}
+    {"t0": 33.0, "t1": 37.5, "y": 0.70, "lines": [["Every crab runs a trained RL policy", 0.62], ["in physics. Nothing is keyframed.", 0.62], ["Reply with a word. They'll spell it.", 0.62]]}
   ]
 }
