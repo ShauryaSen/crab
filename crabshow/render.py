@@ -33,6 +33,7 @@ class Style:
     haze: tuple = (0.15, 0.25, 0.35, 1)
     extra_lights: list = field(default_factory=list)
     ocean: tuple | None = None         # rgb of a sea plane beyond y = +ocean_y
+    mesh_faces: int = 60000            # visual triangles per crab after decimation
     ocean_y: float = 14.0
 
 
@@ -61,7 +62,7 @@ STYLES = {
 def build_scene(n: int, colors, style: Style, width=1080, height=1920, terrain=None):
     from .lod import swarm_xml
 
-    world = mujoco.MjSpec.from_string(swarm_xml(n))
+    world = mujoco.MjSpec.from_string(swarm_xml(n, style.mesh_faces))
     world.compiler.degree = False
     world.option.timestep = 0.001
     world.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
@@ -136,6 +137,8 @@ class Renderer:
         self.n = n
         self.nq1 = (self.model.nq) // n
         self.shell = np.array([self.model.material(f"c{i}_shell").id for i in range(n)])
+        self.display = np.array([self.model.geom(f"c{i}_display_module_link_visual").id
+                                 for i in range(n)])
 
     def set_lights(self, colors, glow, max_emission=1.0):
         """colors (n,3) in 0..1, glow (n,) 0..1. Dark crabs fade to a dim body colour."""

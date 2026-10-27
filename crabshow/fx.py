@@ -197,3 +197,26 @@ class FX:
                             -np.sin(c)], [np.sin(a) * np.sin(c), np.cos(a) * np.sin(c), np.cos(c)]])
             _add(scn, mujoco.mjtGeom.mjGEOM_BOX, [0.05, 0.03, 0.003], pos[i],
                  [*col[i], fade], emission=0.8, mat=mat.ravel())
+
+
+def draw_eyes(scn, t, data, gids, cols, glow, beat, blink_every=4.0, seed=0):
+    """Two glowing eyes on each crab's face display, blinking now and then.
+
+    gids are the display geoms; the plate's normal is its local x and its long side its
+    local z (see the robot's display_module_link mesh).
+    """
+    for i, g in enumerate(gids):
+        if glow[i] < 0.05:
+            continue
+        p = data.geom_xpos[g]
+        R = data.geom_xmat[g].reshape(3, 3)
+        nrm, up, across = R[:, 0], R[:, 1], R[:, 2]
+        # Blink: a quick squash, staggered per crab, every few beats.
+        ph = (t / beat + (i * 0.37) % blink_every) % blink_every
+        open_ = 1.0 if ph > 0.18 else max(0.12, abs(ph - 0.09) / 0.09)
+        c = 0.55 + 0.45 * np.asarray(cols[i])
+        for s in (-1, 1):
+            pos = p + nrm * 0.0035 + across * (s * 0.024) + up * 0.002
+            mat = np.stack([nrm, up, across], 1)
+            _add(scn, mujoco.mjtGeom.mjGEOM_ELLIPSOID, [0.0015, 0.0085 * open_, 0.0065],
+                 pos, [*(c * glow[i]), 1.0], emission=1.0, mat=mat.ravel())

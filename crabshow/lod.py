@@ -24,7 +24,8 @@ def _decimate_meshes(root: ET.Element, target_faces_total: int) -> dict[str, str
     import fast_simplification
     import trimesh
 
-    LOD_DIR.mkdir(parents=True, exist_ok=True)
+    lod_dir = LOD_DIR / str(target_faces_total)
+    lod_dir.mkdir(parents=True, exist_ok=True)
     meshdir = ROBOT_XML.parent
     visual_meshes = {g.get("mesh") for g in root.iter("geom")
                      if g.get("class") == "visual" and g.get("mesh")}
@@ -38,7 +39,7 @@ def _decimate_meshes(root: ET.Element, target_faces_total: int) -> dict[str, str
     total = sum(n for _, n in sizes.values())
     out = {}
     for name, (mesh, nf) in sizes.items():
-        dst = LOD_DIR / f"{name}.stl"
+        dst = lod_dir / f"{name}.stl"
         if not dst.exists():
             keep = max(200, int(nf * target_faces_total / total))
             reduction = 1.0 - min(1.0, keep / nf)

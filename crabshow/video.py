@@ -226,10 +226,15 @@ def _render_chunk(args):
         R.set_poses(poses)
         cols, glow = lights_at(score, t)
         R.set_lights(cols, glow)
-        extra = None
-        if fx is not None:
-            xy = np.array([q[:2] for q in poses])
-            extra = lambda scn: fx.draw(scn, t, xy, cols, glow)
+        xy = np.array([q[:2] for q in poses])
+        beat = 60.0 / plan["bpm"]
+
+        def extra(scn, t=t, xy=xy, cols=cols, glow=glow):
+            if fx is not None:
+                fx.draw(scn, t, xy, cols, glow)
+            if plan.get("eyes", True):
+                from .fx import draw_eyes
+                draw_eyes(scn, t, R.data, R.display, cols, glow, beat)
         img = Image.fromarray(R.frame(*cam[k], extra=extra))
         if R.style.glow > 0:
             img = bloom(img)
@@ -296,7 +301,14 @@ def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
         cols, glow = lights_at(score, t)
         R.set_lights(cols, glow)
         xy = np.array([q[:2] for q in poses])
-        extra = (lambda scn: fx.draw(scn, t, xy, cols, glow)) if fx else None
+        beat = 60.0 / plan["bpm"]
+
+        def extra(scn, t=t, xy=xy, cols=cols, glow=glow):
+            if fx is not None:
+                fx.draw(scn, t, xy, cols, glow)
+            if plan.get("eyes", True):
+                from .fx import draw_eyes
+                draw_eyes(scn, t, R.data, R.display, cols, glow, beat)
         img = Image.fromarray(R.frame(*at(t), extra=extra))
         if R.style.glow > 0:
             img = bloom(img, radius=8)
