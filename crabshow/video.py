@@ -60,9 +60,66 @@ def auto_track(logs, duration, width, height, fps=10, sigma_s=1.2, margin=1.25):
     return ts, smooth(cen), dist
 
 
+def _pick_crab(logs, t, pick):
+    xy = np.array([q[:2] for q in sample(logs, t)])
+    if isinstance(pick, int):
+        return pick
+    c = xy.mean(0)
+    if pick == "front":      # nearest the default camera (lowest y), near the middle
+        score = xy[:, 1] + 0.3 * np.abs(xy[:, 0] - c[0])
+    elif pick == "left":
+        score = xy[:, 0] + 0.3 * np.abs(xy[:, 1] - c[1])
+    elif pick == "right":
+        score = -xy[:, 0] + 0.3 * np.abs(xy[:, 1] - c[1])
+    else:                    # "center"
+        score = np.linalg.norm(xy - c, axis=1)
+    return int(np.argmin(score))
+
+
+def shot_track(plan, logs, duration, width, height):
+    """Edited camera: a list of shots with hard cuts between them.
+
+    Each shot: {"t": start_s, "kind": "wide"|"close", "az": [a0, a1], "el": [e0, e1],
+    "zoom": [z0, z1] (wide, x auto-fit) or "dist": [d0, d1] (close, metres),
+    "crab": "front"|"center"|"left"|"right"|index (close), "follow": 0..1 (wide)}.
+    Values move smoothly within a shot; cut to the next shot at its "t".
+    """
+    ts, cen, dist = auto_track(logs, duration, width, height)
+    shots = sorted(plan["shots"], key=lambda s: s["t"])
+    ends = [s["t"] for s in shots[1:]] + [duration + 1]
+    picked = {}
+
+    def lerp(v, u):
+        if isinstance(v, (int, float)):
+            return float(v)
+        return float(v[0] + (v[1] - v[0]) * (u * u * (3 - 2 * u)))
+
+    def at(t):
+        k = max(i for i, s in enumerate(shots) if s["t"] <= t or i == 0)
+        s, t1 = shots[k], ends[k]
+        u = float(np.clip((t - s["t"]) / max(t1 - s["t"], 1e-6), 0, 1))
+        az, el = lerp(s.get("az", 90), u), lerp(s.get("el", -70), u)
+        if s.get("kind") == "close":
+            if k not in picked:
+                picked[k] = _pick_crab(logs, s["t"], s.get("crab", "front"))
+            i = picked[k]
+            # Smooth the crab's position over ~0.3 s so the shot does not jitter.
+            ps = np.array([sample([logs[i]], t + d)[0][:3] for d in np.linspace(-0.15, 0.15, 7)])
+            look = ps.mean(0) + np.array([0, 0, 0.03])
+            return look, lerp(s.get("dist", [1.2, 1.0]), u), az, el
+        j = min(int(round(t * 10)), len(ts) - 1)
+        f = s.get("follow", 1.0)
+        look = f * np.array([cen[j][0], cen[j][1], 0.0]) + np.array(s.get("off", [0, 0, 0.05]))
+        return look, float(dist[j] * lerp(s.get("zoom", 1.0), u)), az, el
+    return at
+
+
 def camera_track(plan, logs, duration, width, height):
     """Camera keys are [t, [dx, dy, dz], zoom, azimuth, elevation]; the look-at point and
-    distance follow the swarm automatically, the keys add offsets and framing."""
+    distance follow the swarm automatically, the keys add offsets and framing. A plan with
+    "shots" uses the edited, hard-cut camera instead."""
+    if plan.get("shots"):
+        return shot_track(plan, logs, duration, width, height)
     ts, cen, dist = auto_track(logs, duration, width, height)
     keys = plan["camera"]
 

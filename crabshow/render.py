@@ -73,7 +73,8 @@ def build_scene(n: int, colors, style: Style, width=1080, height=1920, terrain=N
     v.headlight.diffuse = [style.headlight] * 3
     v.headlight.specular = [0.1] * 3
     v.rgba.haze = list(style.haze)
-    v.map.znear = 0.01
+    v.map.znear = 0.01    # x extent: 0.1 m with the extent pinned below
+    world.stat.extent = 10.0     # else the sea and floor make it ~180 m and close-ups clip
     v.map.zfar = 200
     world.add_texture(name="sky", type=mujoco.mjtTexture.mjTEXTURE_SKYBOX,
                       builtin=mujoco.mjtBuiltin.mjBUILTIN_GRADIENT,

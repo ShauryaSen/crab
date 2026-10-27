@@ -194,6 +194,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
             offsets = _ripple(act, pos, rng, beat)
             # Take-off comes ~0.3 s after the jump starts: start early so it lands on the beat.
             score.cues.append(Cue(t - 0.3, "jump", dur, offsets=offsets, yaw=FACE_CAMERA))
+            od = offsets if offsets is not None else np.zeros(n)
+            score.jumps += [(i, t + float(od[i])) for i in range(n)]
             flash_t = (offsets if offsets is not None else np.zeros(n))
             for k in range(6):
                 tk = t + float(flash_t.max()) * k / 5
@@ -203,6 +205,24 @@ def compose(plan: dict) -> tuple[Score, dict]:
                                           fade=0.04))
             score.lights.append(Light(t + float(flash_t.max()) + beat, cols.copy(), np.ones(n),
                                       fade=0.3))
+        elif do == "jump_party":
+            # Every crab jumps again and again at its own times: some land on the beat,
+            # most do not, so the swarm boils. min_gap covers the jump plus landing.
+            rate = act.get("per_bar", 0.9)
+            gap = act.get("min_gap", 1.55)
+            on_beat = act.get("on_beat", 0.35)
+            jumps = []
+            for i in range(n):
+                ts_, tt = [], t + rng.uniform(0, beat * 2)
+                while tt < t + dur - 1.0:
+                    if rng.uniform() < on_beat:
+                        tt = t + np.ceil((tt - t) / (beat / 2)) * (beat / 2)
+                    ts_.append(float(tt))
+                    tt += gap + rng.exponential(bar / max(rate, 1e-3) - gap if bar / rate > gap else 0.2)
+                jumps.append(ts_)
+                score.jumps += [(i, x) for x in ts_]
+            score.cues.append(Cue(t, "party", dur, jumps=jumps, yaw=FACE_CAMERA,
+                                  bob=_bob_spec({"every": 1, "amp": 0.03}, beat)))
         elif do == "shift":
             # The whole formation walks together, keeping its shape (no re-assignment).
             targets = pos + np.asarray(act["by"], dtype=float)

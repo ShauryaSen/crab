@@ -26,6 +26,7 @@ class Cue:
     offsets: np.ndarray | None = None   # (n,) seconds of delay per crab, for ripples
     yaw: float = -np.pi / 2       # heading to hold while moving/holding
     bob: tuple | None = None      # (hz_start, hz_end, amp_m, t_ref): body bounce while walking/holding
+    jumps: list | None = None     # "party": per crab, the take-off times (s) of its jumps
 
 
 @dataclass
@@ -46,6 +47,7 @@ class Score:
     lights: list[Light] = field(default_factory=list)
     duration: float = 0.0
     terrain: dict | None = None
+    jumps: list = field(default_factory=list)   # (crab, take-off time) for render effects
 
 
 RAMP = 0.25   # fraction of a move spent accelerating (and again decelerating)
@@ -96,6 +98,18 @@ def simulate_crab(args):
             home = b.copy()
         elif cue.kind == "hold":
             c.run_walk(cue.dur, _hold_cmd(home, cue.yaw), posture=pst)
+        elif cue.kind == "party":
+            # Jump whenever this crab's schedule says; bounce in between.
+            for tj in cue.jumps[i]:
+                pre = tj - 0.3 - c.t
+                if pre > 0.01:
+                    c.run_walk(pre, _hold_cmd(home, cue.yaw), posture=pst)
+                if tj + 1.0 > cue.t + cue.dur:
+                    break
+                c.run_jump()
+            rest = cue.t + cue.dur - c.t
+            if rest > 0.01:
+                c.run_walk(rest, _hold_cmd(home, cue.yaw), posture=pst)
         elif cue.kind == "jump":
             delay = float(cue.offsets[i]) if cue.offsets is not None else 0.0
             pre = max(0.0, delay + (cue.t - c.t))
@@ -184,7 +198,18 @@ def sample(logs, t):
 
 
 def lights_at(score: Score, t: float):
-    """Blend lighting cues: returns (colors (n,3), glow (n,))."""
+    """Blend lighting cues (plus a white flash on every jump): (colors (n,3), glow (n,))."""
+    cols, glow = _lights_at(score, t)
+    for i, tj in score.jumps:
+        u = (t - tj) / 0.35
+        if 0 <= u <= 1:
+            f = 1 - u
+            cols[i] = cols[i] * (1 - f) + f
+            glow[i] = max(glow[i], 1.0)
+    return cols, glow
+
+
+def _lights_at(score: Score, t: float):
     cols = np.zeros((score.n, 3))
     glow = np.zeros(score.n)
     for L in score.lights:
