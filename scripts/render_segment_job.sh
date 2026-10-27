@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Render frames [A, B) of a plan and push the segment to its own branch.
-# usage: scripts/render_segment_job.sh plans/rave_v3.json A B
+# usage: scripts/render_segment_job.sh plans/rave_v3.json A B [WxH]
 set -euo pipefail
-PLAN=$1; A=$2; B=$3
+PLAN=$1; A=$2; B=$3; SIZE=${4:-}
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 scripts/setup.sh
-.venv/bin/python -I scripts/make_show.py "$PLAN" --frames "$A:$B"
-NAME=$(.venv/bin/python -I -c "import json,sys;p=json.load(open(sys.argv[1]));print(p['name']+'_'+p['style'])" "$PLAN")
+.venv/bin/python -I scripts/make_show.py "$PLAN" --frames "$A:$B" ${SIZE:+--size "$SIZE"}
+NAME=$(.venv/bin/python -I -c "import json,sys;p=json.load(open(sys.argv[1]));print(p['name']+'_'+p['style'])" "$PLAN")${SIZE:+_$SIZE}
 SEG=$(printf "out/segments/%s_%05d_%05d.mp4" "$NAME" "$A" "$B")
 BR=$(printf "seg/%s-%05d" "$NAME" "$A")
 git checkout -q -B "$BR"

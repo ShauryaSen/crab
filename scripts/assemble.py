@@ -1,6 +1,6 @@
 """Collect a plan's segment branches (seg/<name>-NNNNN) and join them with the soundtrack.
 
-usage: python -I scripts/assemble.py plans/rave_v3.json
+usage: python -I scripts/assemble.py plans/rave_v3.json [WxH]
 """
 import json, subprocess, sys
 from pathlib import Path
@@ -10,7 +10,7 @@ from crabshow import music
 from crabshow.video import join_segments
 
 plan = json.loads(Path(sys.argv[1]).read_text())
-name = plan["name"] + "_" + plan["style"]
+name = plan["name"] + "_" + plan["style"] + (f"_{sys.argv[2]}" if len(sys.argv) > 2 else "")
 out = Path("out")
 segdir = out / "segments_in" / name
 segdir.mkdir(parents=True, exist_ok=True)
