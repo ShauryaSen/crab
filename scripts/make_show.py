@@ -20,6 +20,7 @@ def main():
     ap.add_argument("--out", default="out")
     ap.add_argument("--resim", action="store_true")
     ap.add_argument("--preview", action="store_true", help="contact sheet only")
+    ap.add_argument("--size", help="WxH, e.g. 1080x1920 for a 9:16 Shorts cut")
     ap.add_argument("--frames", help="a:b -- render only frames [a, b) as a silent segment")
     args = ap.parse_args()
 
@@ -58,6 +59,9 @@ def main():
 
     t = time.time()
     w, h = (540, 676) if args.draft else (1080, 1350)
+    if args.size:
+        w, h = (int(x) for x in args.size.split("x"))
+        name += f"_{w}x{h}"
     if args.frames:
         a, b = (int(x) for x in args.frames.split(":"))
         seg = out / "segments" / f"{name}_{a:05d}_{b:05d}.mp4"
