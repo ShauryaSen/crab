@@ -79,6 +79,13 @@ def shape_points(act: dict, n: int) -> np.ndarray:
             pts = F.spiral(n, SPACING)
         elif shape == "grid":
             pts = F.grid(n, SPACING)
+        elif shape == "rows":
+            k = act.get("rows", 3)
+            cols = int(np.ceil(n / k))
+            gap = act.get("gap", 1.4) * SPACING
+            pts = np.array([((c - (cols - 1) / 2) * gap + (r % 2) * gap / 2,
+                             ((k - 1) / 2 - r) * SPACING * 1.2)
+                            for r in range(k) for c in range(cols)][:n])
         else:
             raise ValueError(shape)
     return F.fit_spacing(pts, SPACING)
