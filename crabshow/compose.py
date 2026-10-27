@@ -88,10 +88,15 @@ def scatter(n: int, radius: float, seed: int = 1) -> np.ndarray:
     """Random start positions with no two closer than SPACING."""
     rng = np.random.default_rng(seed)
     pts = []
+    tries = 0
     while len(pts) < n:
         p = rng.uniform(-radius, radius, 2)
+        tries += 1
         if all(np.linalg.norm(p - q) >= SPACING * 1.1 for q in pts):
             pts.append(p)
+        if tries > 200 * n:      # too tight for random packing: widen the field
+            radius *= 1.1
+            tries = 0
     return np.array(pts)
 
 
