@@ -1,0 +1,261 @@
+{
+ "name": "onecrab_v9",
+ "prompt": "",
+ "n": 11904,
+ "style": "moonbeach",
+ "bpm": 128,
+ "seed": 7,
+ "start": "mosaic",
+ "mosaic": {
+  "cols": 160,
+  "spacing": 0.66
+ },
+ "crowd": true,
+ "sections": [
+  [
+   "intro",
+   3
+  ],
+  [
+   "build",
+   2
+  ],
+  [
+   "drop",
+   11
+  ],
+  [
+   "outro",
+   3.5
+  ]
+ ],
+ "acts": [
+  {
+   "bar": 0.75,
+   "do": "eyes",
+   "mode": "boot"
+  },
+  {
+   "bar": 1.5,
+   "do": "eyes",
+   "mode": "blink"
+  },
+  {
+   "bar": 2.0,
+   "do": "eyes",
+   "mode": "open"
+  },
+  {
+   "bar": 2.5,
+   "do": "eyes",
+   "mode": "happy"
+  },
+  {
+   "bar": 5,
+   "do": "mob",
+   "path_to": [
+    3.0,
+    18.0
+   ],
+   "zone_m": 12.0,
+   "patch_r": 2.6,
+   "ripple_s": 5.0,
+   "ripple_pow": 0.6,
+   "ripple_d": 20.0,
+   "star": [
+    8.75,
+    10.25
+   ],
+   "spin": [
+    10.25,
+    12.25
+   ],
+   "heart": [
+    12.25,
+    13.75
+   ],
+   "beat": [
+    13.75,
+    15.0
+   ],
+   "home": [
+    14.5,
+    15.0
+   ],
+   "home_by": 17.5,
+   "party_until": 14.5,
+   "wander_m": 2.6,
+   "sep": 0.36,
+   "moves": {
+    "dance_dream_wings": 2,
+    "dance_maze": 2,
+    "dance_waist": 1,
+    "dance": 1,
+    "jumps": 2.5,
+    "gesture_hello": 0.7,
+    "gesture_paw": 0.7,
+    "gesture_salute": 0.7,
+    "gesture_bow": 0.4,
+    "popper": 0.35
+   }
+  },
+  {
+   "bar": 17.75,
+   "do": "eyes",
+   "mode": "open"
+  },
+  {
+   "bar": 18.25,
+   "do": "eyes",
+   "mode": "wink",
+   "lead": 0.0,
+   "hold": 0.4
+  },
+  {
+   "bar": 18.65,
+   "do": "eyes",
+   "mode": "happy"
+  },
+  {
+   "bar": 19.15,
+   "do": "eyes",
+   "mode": "off"
+  }
+ ],
+ "fx": {},
+ "bloom": {
+  "strength": 0.6,
+  "radius": 10,
+  "threshold": 150
+ },
+ "crowd_opts": {
+  "faces_far": 2500,
+  "faces_near": 60000,
+  "near_n": 24,
+  "near_m": 7.0,
+  "dot_dim": 1.0
+ },
+ "shots": [
+  {
+   "t": 0.0,
+   "kind": "wide",
+   "az": 90,
+   "el": -89.5,
+   "zoom": 1.0,
+   "follow": 1
+  },
+  {
+   "t": 5.625,
+   "kind": "zoom",
+   "crab": "hero",
+   "az": 90,
+   "zoom_far": 1.0,
+   "dist_near": 1.15,
+   "el_far": -89.5,
+   "el_near": -26
+  },
+  {
+   "t": 9.375,
+   "kind": "dolly",
+   "crab": "hero",
+   "by": [
+    3.0,
+    18.0
+   ],
+   "dist": [
+    1.15,
+    8.5
+   ],
+   "az": 90,
+   "el": [
+    -26,
+    -52
+   ],
+   "ease": "late"
+  },
+  {
+   "t": 19.21875,
+   "kind": "pan",
+   "from": "patch",
+   "to": "patch",
+   "dist": [
+    8.5,
+    7.5
+   ],
+   "az": [
+    90,
+    125
+   ],
+   "el": [
+    -52,
+    -58
+   ]
+  },
+  {
+   "t": 28.125,
+   "kind": "zoom",
+   "out": true,
+   "at": "patch",
+   "az": [
+    125,
+    90
+   ],
+   "zoom_far": 1.0,
+   "dist_near": 7.5,
+   "el_far": -89.5,
+   "el_near": -58
+  },
+  {
+   "t": 32.8125,
+   "kind": "wide",
+   "az": 90,
+   "el": -89.5,
+   "zoom": 1.0
+  }
+ ],
+ "captions": [
+  {
+   "t0": 33.75,
+   "t1": 36.38,
+   "y": 0.86,
+   "lines": [
+    [
+     "11,904 robot crabs. One robot.",
+     0.6
+    ]
+   ]
+  }
+ ],
+ "style_opts": {
+  "ocean": null,
+  "floor_rgb1": [
+   0.03,
+   0.03,
+   0.045
+  ],
+  "floor_rgb2": [
+   0.03,
+   0.03,
+   0.045
+  ],
+  "floor_reflect": 0.06
+ },
+ "look": "grain",
+ "defocus": {
+  "cell": 0.66,
+  "k": 0.45,
+  "fade": [
+   8.0,
+   20.0
+  ],
+  "gain": 6.5,
+  "sharp": [
+   27.0,
+   32.9,
+   0.9
+  ]
+ },
+ "music": "chiptune_v7",
+ "hero_on": "happy",
+ "sim_name": "onecrab_v8"
+}

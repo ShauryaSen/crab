@@ -294,7 +294,7 @@ def make_renderer(score, plan, width, height):
                     terrain=plan.get("terrain"))
 
 
-def defocus(img, cfg, camera, height):
+def defocus(img, cfg, camera, height, t=None):
     """Lens defocus that tracks how big one crab cell is on screen. A regular grid of
     crabs a few pixels apart aliases into moire when the frame is downscaled; a blur of
     about half a cell removes the grid and keeps the picture. It fades out as the camera
@@ -307,12 +307,20 @@ def defocus(img, cfg, camera, height):
     w = np.clip((hi - cell_px) / (hi - lo), 0.0, 1.0)
     # Only looking down on the grid does it alias; low shots have real depth and stay sharp.
     w *= np.clip((abs(float(camera[3])) - 35.0) / 25.0, 0.0, 1.0)
-    sigma = float(cfg.get("k", 0.45) * cell_px * w * w * (3 - 2 * w))
-    if sigma <= 0.3:
+    wb = w
+    if t is not None and cfg.get("sharp"):
+        # Stay sharp through a window (crabs visibly running home), easing back in after;
+        # the exposure still follows the distance, so the picture is as bright either way.
+        t0, t1, ramp = cfg["sharp"]
+        if t0 <= t:
+            wb = w * float(np.clip((t - t1) / ramp, 0.0, 1.0))
+    sigma = float(cfg.get("k", 0.45) * cell_px * wb * wb * (3 - 2 * wb))
+    # Averaging in the dark gaps between crabs dims the picture; give that light back
+    # (less when sharp: the dots themselves are not dimmed).
+    gain = 1 + (cfg.get("gain", 2.0) - 1) * float(w) * (cfg.get("sharp_gain", 0.5) + (1 - cfg.get("sharp_gain", 0.5)) * float(wb / max(w, 1e-6)))
+    if sigma <= 0.3 and gain <= 1.01:
         return img
-    # Averaging in the dark gaps between crabs dims the picture; give that light back.
-    gain = 1 + (cfg.get("gain", 2.0) - 1) * float(w)
-    a = np.asarray(img.filter(ImageFilter.GaussianBlur(sigma))).astype(np.float32) * gain
+    a = np.asarray(img if sigma <= 0.3 else img.filter(ImageFilter.GaussianBlur(sigma))).astype(np.float32) * gain
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 
@@ -340,7 +348,7 @@ def frame_image(R, fx, plan, score, logs, t, camera, post=True):
     else:
         img = Image.fromarray(R.frame(*camera, extra=extra))
     if plan.get("defocus"):
-        img = defocus(img, plan["defocus"], camera, R.H)
+        img = defocus(img, plan["defocus"], camera, R.H, t=t)
     if R.style.glow > 0:
         b = plan.get("bloom", {})
         img = bloom(img, strength=b.get("strength", 0.9), radius=b.get("radius", 18),
