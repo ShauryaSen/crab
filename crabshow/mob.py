@@ -337,6 +337,7 @@ def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, r
         sc.sort(key=lambda e: e[1])
     # ---- everyone else parties in place ----
     rest = np.nonzero(~(mob | patch))[0]
+    rng = np.random.default_rng(int(1e6 + n))     # own stream: mob tweaks leave these alone
     for i in rest:
         if dark[i]:
             continue
