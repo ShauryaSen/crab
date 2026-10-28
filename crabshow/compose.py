@@ -556,12 +556,12 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 else:
                     L = rng.uniform(*act.get("length", [0.6, 1.6]))
                 t0 = t + rng.uniform(0, act.get("spread", 0.5)) * dur
-                d = rng.uniform(0.55, 0.75) * dur
+                d = rng.uniform(*act.get("run", [0.55, 0.75])) * dur
                 ys = pos[m, 1]
                 u = (ys.max() - ys) / (np.ptp(ys) + 1e-6)          # 0 at the top, 1 at the bottom
                 for i, ui in zip(m, u):
                     k = int(d / 0.1) + 1
-                    e = np.linspace(0, 1, k) ** 2                  # a drop speeds up as it falls
+                    e = np.linspace(0, 1, k) ** act.get("accel", 2.0)   # a drop speeds up as it falls
                     drop = L * (0.25 + 0.75 * ui)
                     xy = pos[i] + np.outer(e, [0.0, -drop])
                     steps[i].append(("path", float(t0), 0.1, xy, np.full(k, FACE_CAMERA)))
@@ -573,6 +573,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 g2, c2 = glow.copy(), cols.copy()
                 for i, (t0, d) in g_at.items():
                     f = float(np.clip((tk - t0) / (d * 1.3), 0, 1))
+                    hold = act.get("hold", 0.0)          # stay lit while running, then drain
+                    f = float(np.clip((f - hold) / (1 - hold), 0, 1))
                     g2[i] = glow[i] * (1 - f) ** 1.5
                     c2[i] = cols[i] * (1 - 0.6 * f) + np.array([0.05, 0.25, 0.08]) * 0.6 * f
                 score.lights.append(Light(tk, c2, g2, fade=0.25))
