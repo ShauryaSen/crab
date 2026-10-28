@@ -651,11 +651,14 @@ def halloween_v5(bpm=128.0, seconds=31.875, prompt=None, t0=0.3, cps=22.0, enter
     E = enter_s * sb                                  # Enter, in beats (bar 2 = beat 8)
     rng = np.random.default_rng(5)
     if prompt:
+        # A person typing, not a machine gun: about every other key is heard, with uneven
+        # timing and weight; spaces land a bit harder.
         for k, ch in enumerate(prompt):
-            ts = t0 + (k + 1) / cps
-            if ts < enter_s - 0.05:
-                n.append((ts * sb, 0, 76 + rng.integers(-3, 4) - (8 if ch == " " else 0),
-                          "keyclick", 0.55 + 0.15 * rng.uniform()))
+            ts = t0 + (k + 1) / cps + rng.uniform(-0.015, 0.015)
+            if ts >= enter_s - 0.05 or (ch != " " and rng.uniform() < 0.45):
+                continue
+            n.append((ts * sb, 0, 76 + rng.integers(-3, 4) - (8 if ch == " " else 0), "keyclick",
+                      (0.6 if ch == " " else 0.35 + 0.2 * rng.uniform())))
     n.append((0, E, 35, "organ", 0.18)); n.append((0, E, 47, "organ", 0.12))   # pedal drone
     n.append((0.5, 0, 52, "bell", 0.25))                                         # far-off toll
     n.append((E, 0, 52, "keyclick", 1.0)); n.append((E + 0.02, 0, 40, "keyclick", 0.8))   # Enter
