@@ -373,6 +373,18 @@ def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=108
     return out_path
 
 
+def join_segments(segments, audio_path, out_path):
+    """Concatenate silent segments (same encode settings) and add the soundtrack."""
+    lst = Path(out_path).with_suffix(".txt")
+    lst.write_text("".join(f"file '{Path(p).resolve()}'\n" for p in segments))
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                    "-i", str(lst), "-i", str(audio_path), "-c:v", "copy", "-c:a", "aac",
+                    "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(out_path)],
+                   check=True)
+    lst.unlink()
+    return out_path
+
+
 def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
     """A contact sheet of a few frames, for checking framing before a full render."""
     at = camera_track(plan, logs, score.duration, width, height, score)
