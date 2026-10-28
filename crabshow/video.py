@@ -108,7 +108,8 @@ def shot_track(plan, logs, duration, width, height, score=None):
             # Powers-of-ten move: from the swarm's fit distance down to one crab's face
             # (or back out), log-linear in distance so the speed feels constant.
             if k not in picked:
-                picked[k] = _pick_crab(logs, s["t"], s.get("crab", "center"))
+                pk = s.get("crab", "center")
+                picked[k] = plan["_hero"] if pk == "hero" else _pick_crab(logs, s["t"], pk)
             i = picked[k]
             e = u * u * (3 - 2 * u)
             if s.get("out"):
@@ -124,7 +125,8 @@ def shot_track(plan, logs, duration, width, height, score=None):
             return look, dd, az, el
         if s.get("kind") == "close":
             if k not in picked:
-                picked[k] = _pick_crab(logs, s["t"], s.get("crab", "front"))
+                pk = s.get("crab", "front")
+                picked[k] = plan["_hero"] if pk == "hero" else _pick_crab(logs, s["t"], pk)
             i = picked[k]
             # Smooth the crab's position over ~0.3 s so the shot does not jitter.
             ps = np.array([sample([logs[i]], t + d)[0][:3] for d in np.linspace(-0.15, 0.15, 7)])
@@ -232,42 +234,86 @@ def overlay_caption(img: Image.Image, lines, alpha=1.0, y_frac=0.80, size_frac=0
     return Image.alpha_composite(img.convert("RGBA"), layer).convert("RGB")
 
 
-def _render_chunk(args):
-    (k0, k1, fps, score, logs, plan, outdir, width, height, cam) = args
+def plan_style(plan):
+    """The plan's style, with any per-plan overrides ("style_opts") applied."""
+    import copy
+
+    from .render import STYLES
+
+    st = copy.deepcopy(STYLES[plan.get("style", "night")])
+    for k, v in plan.get("style_opts", {}).items():
+        setattr(st, k, tuple(v) if isinstance(v, list) else v)
+    return st
+
+
+def make_renderer(score, plan, width, height):
+    """The standard renderer, or the instanced crowd renderer for big swarms."""
+    style = plan_style(plan)
+    if plan.get("crowd") or score.n > 400:
+        from .crowd import CrowdRenderer
+
+        return CrowdRenderer(score.n, np.ones((score.n, 3)), style,
+                             width, height, terrain=plan.get("terrain"),
+                             **plan.get("crowd_opts", {}))
     from .render import Renderer
 
-    R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height,
-                 terrain=plan.get("terrain"))
+    return Renderer(score.n, np.ones((score.n, 3)), style, width, height,
+                    terrain=plan.get("terrain"))
+
+
+def frame_image(R, fx, plan, score, logs, t, camera, post=True):
+    """One finished frame: poses, lights, effects, eyes, bloom, overlays."""
+    from .crowd import CrowdRenderer
+
+    poses = sample(logs, t)
+    R.set_poses(poses)
+    cols, glow = lights_at(score, t)
+    R.set_lights(cols, glow)
+    xy = np.array([q[:2] for q in poses])
+    beat = 60.0 / plan["bpm"]
+    crowd = isinstance(R, CrowdRenderer)
+
+    def extra(scn):
+        if fx is not None:
+            fx.draw(scn, t, xy, cols, glow)
+        if plan.get("eyes", True) and not crowd:
+            from .fx import draw_eyes
+            draw_eyes(scn, t, R.data, R.display, cols, glow, beat)
+    if crowd:
+        R.eyes = plan.get("eyes", True)
+        img = Image.fromarray(R.frame(*camera, extra=extra, t=t, beat=beat))
+    else:
+        img = Image.fromarray(R.frame(*camera, extra=extra))
+    if R.style.glow > 0:
+        b = plan.get("bloom", {})
+        img = bloom(img, strength=b.get("strength", 0.9), radius=b.get("radius", 18),
+                    threshold=b.get("threshold", 110))
+    if not post:
+        return img
+    if plan.get("prompt"):
+        img = overlay_prompt(img, plan["prompt"], t, t0=plan.get("prompt_t0", 0.3),
+                             hold_until=plan.get("prompt_hold", 6.0))
+    for cap in plan.get("captions", []):
+        if cap["t0"] <= t <= cap["t1"]:
+            a = min(1.0, (t - cap["t0"]) / 0.4, (cap["t1"] - t) / 0.4)
+            img = overlay_caption(img, [(l, s) for l, s in cap["lines"]], a, cap.get("y", 0.78))
+    if plan.get("look"):
+        from .looks import LOOKS
+        img = LOOKS[plan["look"]](img, t, int(t * 30))
+    return img
+
+
+def _render_chunk(args):
+    (k0, k1, fps, score, logs, plan, outdir, width, height, cam) = args
+    R = make_renderer(score, plan, width, height)
     fx = None
     if plan.get("fx"):
         from .fx import FX
 
         fx = FX(plan, score, logs)
     for k in range(k0, k1):
-        t = k / fps
-        poses = sample(logs, t)
-        R.set_poses(poses)
-        cols, glow = lights_at(score, t)
-        R.set_lights(cols, glow)
-        xy = np.array([q[:2] for q in poses])
-        beat = 60.0 / plan["bpm"]
-
-        def extra(scn, t=t, xy=xy, cols=cols, glow=glow):
-            if fx is not None:
-                fx.draw(scn, t, xy, cols, glow)
-            if plan.get("eyes", True):
-                from .fx import draw_eyes
-                draw_eyes(scn, t, R.data, R.display, cols, glow, beat)
-        img = Image.fromarray(R.frame(*cam[k], extra=extra))
-        if R.style.glow > 0:
-            img = bloom(img)
-        img = overlay_prompt(img, plan["prompt"], t, hold_until=plan.get("prompt_hold", 6.0))
-        for cap in plan.get("captions", []):
-            if cap["t0"] <= t <= cap["t1"]:
-                a = min(1.0, (t - cap["t0"]) / 0.4, (cap["t1"] - t) / 0.4)
-                img = overlay_caption(img, [(l, s) for l, s in cap["lines"]], a,
-                                      cap.get("y", 0.78))
-        img.save(outdir / f"f{k:05d}.png", compress_level=1)
+        frame_image(R, fx, plan, score, logs, k / fps, cam[k]).save(
+            outdir / f"f{k:05d}.png", compress_level=1)
     return k1 - k0
 
 
@@ -307,11 +353,8 @@ def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=108
 
 def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
     """A contact sheet of a few frames, for checking framing before a full render."""
-    from .render import Renderer
-
     at = camera_track(plan, logs, score.duration, width, height, score)
-    R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height,
-                 terrain=plan.get("terrain"))
+    R = make_renderer(score, plan, width, height)
     fx = None
     if plan.get("fx"):
         from .fx import FX
@@ -319,22 +362,7 @@ def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
         fx = FX(plan, score, logs)
     tiles = []
     for t in times:
-        poses = sample(logs, t)
-        R.set_poses(poses)
-        cols, glow = lights_at(score, t)
-        R.set_lights(cols, glow)
-        xy = np.array([q[:2] for q in poses])
-        beat = 60.0 / plan["bpm"]
-
-        def extra(scn, t=t, xy=xy, cols=cols, glow=glow):
-            if fx is not None:
-                fx.draw(scn, t, xy, cols, glow)
-            if plan.get("eyes", True):
-                from .fx import draw_eyes
-                draw_eyes(scn, t, R.data, R.display, cols, glow, beat)
-        img = Image.fromarray(R.frame(*at(t), extra=extra))
-        if R.style.glow > 0:
-            img = bloom(img, radius=8)
+        img = frame_image(R, fx, plan, score, logs, t, at(t), post=False)
         ImageDraw.Draw(img).text((6, 6), f"t={t:.1f}s", fill=(255, 255, 0))
         tiles.append(img)
     cols = 6
@@ -343,16 +371,4 @@ def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
     for k, im in enumerate(tiles):
         sheet.paste(im, ((k % cols) * width, (k // cols) * height))
     sheet.save(out_path)
-    return out_path
-
-
-def join_segments(segments, audio_path, out_path):
-    """Concatenate silent segments (same encode settings) and add the soundtrack."""
-    lst = Path(out_path).with_suffix(".txt")
-    lst.write_text("".join(f"file '{Path(p).resolve()}'\n" for p in segments))
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
-                    "-i", str(lst), "-i", str(audio_path), "-c:v", "copy", "-c:a", "aac",
-                    "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(out_path)],
-                   check=True)
-    lst.unlink()
     return out_path

@@ -126,11 +126,11 @@ def _bob_spec(act, beat):
     return (1.0 / (e0 * beat), 1.0 / (e1 * beat), act.get("amp", 0.035))
 
 
-def _ripple(act, pos, rng, beat):
+def _ripple(act, pos, rng, beat, origin=None):
     ripple = act.get("ripple")
     if not ripple:
         return None
-    c = pos.mean(0)
+    c = pos.mean(0) if origin is None else origin
     if ripple == "center":
         d = np.linalg.norm(pos - c, axis=1)
     elif ripple == "left":
@@ -146,13 +146,34 @@ def compose(plan: dict) -> tuple[Score, dict]:
     beat = bar / 4
     total_bars = sum(b for _, b in plan["sections"])
     rng = np.random.default_rng(plan.get("seed", 3))
-    start = scatter(n, plan.get("scatter_radius", 0.42 * np.sqrt(n)), plan.get("seed", 1))
+    M = None
+    if plan.get("start") == "mosaic":
+        from . import mosaic
+        M = mosaic.build(**plan.get("mosaic", {}))
+        assert len(M["pts"]) == n, f"mosaic has {len(M['pts'])} crabs; set n to that"
+        start = M["pts"].copy()
+    else:
+        start = scatter(n, plan.get("scatter_radius", 0.42 * np.sqrt(n)), plan.get("seed", 1))
     score = Score(n=n, start=start, start_yaw=FACE_CAMERA, duration=total_bars * bar,
                   terrain=plan.get("terrain"))
     pos = start.copy()
     cols = np.zeros((n, 3))
     glow = np.zeros(n)
     meta = {"formations": []}
+    if M is not None:
+        # The picture is fully lit from the first frame; the face display starts dark.
+        img = np.clip(M["cols"] * 1.15, 0, 1)
+        cols = img.copy()
+        glow = (~M["hole"]).astype(float)
+        cols[M["hole"]] = 0.05
+        score.lights.append(Light(0.0, cols.copy(), glow.copy(), fade=0.0))
+        meta["mosaic"] = M
+        meta["hero"] = M["hero"]
+
+    def origin_of(act):
+        if act.get("from") == "hero" and M is not None:
+            return pos[M["hero"]]
+        return pos.mean(0)
 
     for act in plan["acts"]:
         t = act["bar"] * bar
@@ -236,7 +257,7 @@ def compose(plan: dict) -> tuple[Score, dict]:
             # starts on every other beat and ends four bounces per beat.
             score.cues.append(Cue(t, "hold", dur, yaw=FACE_CAMERA, bob=_bob_spec(act, beat)))
         elif do == "jump":
-            offsets = _ripple(act, pos, rng, beat)
+            offsets = _ripple(act, pos, rng, beat, origin_of(act))
             # Take-off comes ~0.3 s after the jump starts: start early so it lands on the beat.
             score.cues.append(Cue(t - 0.3, "jump", dur, offsets=offsets, yaw=FACE_CAMERA))
             od = offsets if offsets is not None else np.zeros(n)
@@ -295,7 +316,7 @@ def compose(plan: dict) -> tuple[Score, dict]:
             offsets = None
             ripple = act.get("ripple")
             if ripple:
-                c = pos.mean(0)
+                c = origin_of(act)
                 if ripple == "center":
                     d = np.linalg.norm(pos - c, axis=1)
                 elif ripple == "left":
@@ -322,6 +343,61 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 score.lights.append(Light(t + dur, cols.copy(), np.ones(n), fade=0.1))
         elif do == "lights_out":
             score.lights.append(Light(t, cols.copy(), np.zeros(n), fade=act.get("bars", 1) * bar))
+        elif do == "eyes":
+            # The giant robot's face display: boot, blink, happy, wink, off.
+            Mo = meta["mosaic"]
+            eye_col = np.array(act.get("color", [0.75, 0.95, 1.0]))
+            hole = Mo["hole"]
+            left = Mo["rc"][:, 1] < np.median(Mo["rc"][hole, 1])
+
+            def show(mask, when, fade=0.06):
+                nonlocal cols, glow
+                c2, g2 = cols.copy(), glow.copy()
+                c2[hole], g2[hole] = 0.05, 0.0
+                c2[mask], g2[mask] = eye_col, 1.0
+                cols, glow = c2, g2
+                score.lights.append(Light(when, cols.copy(), glow.copy(), fade=fade))
+            mode = act["mode"]
+            if mode == "boot":         # flicker on like an old screen
+                for k, on in enumerate([1, 0, 1, 0, 0, 1, 1, 0, 1]):
+                    show(Mo["eye_open"] if on else np.zeros(n, bool), t + k * 0.07, 0.02)
+            elif mode == "blink":
+                show(np.zeros(n, bool), t, 0.04)
+                show(Mo["eye_open"], t + 0.16, 0.04)
+            elif mode == "happy":
+                show(Mo["eye_happy"], t, 0.08)
+            elif mode == "wink":       # left eye closes to a ^, right stays open
+                show((Mo["eye_happy"] & left) | (Mo["eye_open"] & ~left), t, 0.05)
+                show(Mo["eye_happy"], t + act.get("hold", 0.5), 0.08)
+            elif mode == "open":
+                show(Mo["eye_open"], t, 0.08)
+            else:
+                show(np.zeros(n, bool), t, 0.1)
+        elif do == "solo":
+            # Only the hero dances; everyone else holds still.
+            only = np.zeros(n, bool)
+            only[meta["hero"]] = True
+            sf = act.get("start_frame")
+            if sf is None:
+                sf = lively_start(act["move"], dur)
+            score.cues.append(Cue(t, "clip", dur, policy=act["move"], start_frame=sf,
+                                  yaw=FACE_CAMERA, only=only))
+        elif do == "counter_march":
+            # Alternate rows slide opposite ways by `cells` grid spacings, hold, come back.
+            Mo = meta["mosaic"]
+            rows = Mo["rc"][:, 0]
+            band = act.get("band_rows", 1)
+            sign = np.where((rows // band) % 2 == 0, 1.0, -1.0)
+            d = act.get("cells", 2) * Mo["spacing"]
+            off = np.stack([sign * d, np.zeros(n)], 1)
+            score.cues.append(Cue(t, "track", dur, yaw=FACE_CAMERA, track={"offset": off,
+                                  "ramp": act.get("ramp", 0.35)}, bob=_bob_spec(act, beat)))
+        elif do == "breathe":
+            # The whole picture swells outward and settles back.
+            c = pos.mean(0)
+            off = (pos - c) * (act.get("by", 1.08) - 1)
+            score.cues.append(Cue(t, "track", dur, yaw=FACE_CAMERA, track={"offset": off,
+                                  "ramp": 0.5}, bob=_bob_spec(act, beat)))
         elif do == "ignite":
             # Light the hidden face: upper pixels (eyes) first, then the rest (mouth).
             face = meta["face"]

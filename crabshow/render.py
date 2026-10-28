@@ -59,10 +59,11 @@ STYLES = {
 }
 
 
-def build_scene(n: int, colors, style: Style, width=1080, height=1920, terrain=None):
+def build_scene(n: int, colors, style: Style, width=1080, height=1920, terrain=None,
+                per_crab_faces=None):
     from .lod import swarm_xml
 
-    world = mujoco.MjSpec.from_string(swarm_xml(n, style.mesh_faces))
+    world = mujoco.MjSpec.from_string(swarm_xml(n, style.mesh_faces, per_crab_faces))
     world.compiler.degree = False
     world.option.timestep = 0.001
     world.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
@@ -93,7 +94,7 @@ def build_scene(n: int, colors, style: Style, width=1080, height=1920, terrain=N
     mat = world.add_material(name="floormat", reflectance=style.floor_reflect,
                              texrepeat=[style.floor_scale, style.floor_scale], texuniform=True)
     mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = "floortex"
-    world.worldbody.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[60, 60, 0.1],
+    world.worldbody.add_geom(name="floor", type=mujoco.mjtGeom.mjGEOM_PLANE, size=[300, 300, 0.1],
                              material="floormat", contype=0, conaffinity=0,
                              pos=[0, 0, -0.15 if terrain else 0])
     if terrain:

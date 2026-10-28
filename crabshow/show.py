@@ -28,6 +28,7 @@ class Cue:
     bob: tuple | None = None      # (hz_start, hz_end, amp_m, t_ref): body bounce while walking/holding
     jumps: list | None = None     # "party": per crab, the take-off times (s) of its jumps
     track: dict | None = None     # "track": per crab pivot (n,2), weight (n,), amp_rad, period_s
+    only: np.ndarray | None = None  # (n,) bool: crabs that perform this cue; others hold
 
 
 @dataclass
@@ -93,6 +94,10 @@ def simulate_crab(args):
         if gap > 0.01:
             c.run_walk(gap, _hold_cmd(home, cue.yaw))
         pst = _bob(cue)
+        if cue.only is not None and not cue.only[i]:
+            if cue.t + cue.dur > c.t:
+                c.run_walk(cue.t + cue.dur - c.t, _hold_cmd(home, cue.yaw))
+            continue
         if cue.kind == "move":
             a, b = c.pos.copy(), cue.targets[i]
             c.run_walk(cue.dur, _move_cmd(a, b, cue.t, cue.dur, cue.yaw), posture=pst)
@@ -137,6 +142,23 @@ def _track_cmd(home, cue, i):
     """Follow a target that swings about a pivot: theta(t) = w * amp * sin(2 pi t / period).
     Crabs with weight 0 stand still; the rest sweep an arc (a waving claw)."""
     tr = cue.track
+    if "offset" in tr:
+        off = np.asarray(tr["offset"][i], dtype=float)
+        ramp = tr.get("ramp", 0.4)
+
+        def prof(t):
+            u = np.clip((t - cue.t) / cue.dur, 0, 1)
+            up = np.clip(u / ramp, 0, 1)
+            down = np.clip((1 - u) / ramp, 0, 1)
+            x = min(up, down)
+            return x * x * (3 - 2 * x)
+
+        def f_off(crab):
+            t = crab.t
+            p, p2 = home + off * prof(t), home + off * prof(t + 0.02)
+            v = (p2 - p) / 0.02 + 2.0 * (p - crab.pos)
+            return _body_cmd(crab, v, cue.yaw)
+        return f_off
     piv = np.asarray(tr["pivot"][i], dtype=float)
     w = float(tr["weight"][i])
     amp, per = tr["amp"], tr["period"]

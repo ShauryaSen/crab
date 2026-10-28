@@ -33,6 +33,8 @@ def main():
 
     t = time.time()
     score, meta = compose(plan)
+    if "hero" in meta:
+        plan["_hero"] = int(meta["hero"])
     for w in meta.get("warnings", []):
         print("WARNING (plan):", w)
     synth = music.synth_rave if plan.get("music", "rave") == "rave" else music.synth_track

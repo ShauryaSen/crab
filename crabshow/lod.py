@@ -53,11 +53,17 @@ def _decimate_meshes(root: ET.Element, target_faces_total: int) -> dict[str, str
     return out
 
 
-def swarm_xml(n: int, target_faces: int = 24000) -> str:
-    """MJCF text for n kinematic crabs (free joints, no collisions) sharing one mesh set."""
+def swarm_xml(n: int, target_faces: int = 24000, per_crab_faces: list | None = None) -> str:
+    """MJCF text for n kinematic crabs (free joints, no collisions) sharing one mesh set.
+
+    per_crab_faces gives each crab its own detail level (crowd templates); meshes for each
+    level are loaded once and named <mesh>__<faces>.
+    """
     tree = ET.parse(ROBOT_XML)
     root = tree.getroot()
-    lod = _decimate_meshes(root, target_faces)
+    levels = per_crab_faces or [target_faces] * n
+    lods = {f: _decimate_meshes(root, f) for f in sorted(set(levels))}
+    lod = lods[levels[0]]
     world = ET.Element("mujoco", {"model": "swarm"})
     ET.SubElement(world, "compiler", {"angle": "radian"})
     ET.SubElement(world, "option", {"timestep": "0.001"})
@@ -65,7 +71,9 @@ def swarm_xml(n: int, target_faces: int = 24000) -> str:
     asset = ET.SubElement(world, "asset")
     for m in root.find("asset"):
         if m.tag == "mesh" and m.get("name") in lod:
-            ET.SubElement(asset, "mesh", {"name": m.get("name"), "file": lod[m.get("name")]})
+            for f, files in lods.items():
+                ET.SubElement(asset, "mesh", {"name": f"{m.get('name')}__{f}",
+                                              "file": files[m.get("name")]})
         elif m.tag != "mesh":
             asset.append(copy.deepcopy(m))
     for i in range(n):
@@ -85,6 +93,8 @@ def swarm_xml(n: int, target_faces: int = 24000) -> str:
                 if ch.get("_drop"):
                     parent.remove(ch)
         for g in b.iter("geom"):
+            if g.get("mesh"):
+                g.set("mesh", f"{g.get('mesh')}__{levels[i]}")
             rgba = [float(x) for x in (g.get("rgba") or "0.5 0.5 0.5 1").split()]
             if np.allclose(rgba[:3], SHELL_RGBA, atol=0.01):
                 g.set("rgba", "0.5 0.5 0.5 1")    # default rgba: the material's colour wins
