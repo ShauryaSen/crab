@@ -324,7 +324,10 @@ def compose(plan: dict) -> tuple[Score, dict]:
                     d = pos[:, 0] - pos[:, 0].min()
                 else:
                     d = rng.uniform(0, 1, n) * np.ptp(pos[:, 0])
-                offsets = d / (np.ptp(d) + 1e-9) * act.get("ripple_s", beat * 2)
+                # ripple_pow < 1 makes the wave slow near the origin (neighbours visibly join
+                # one by one) and fast far away (it still crosses a huge field in time).
+                u = (d - d.min()) / (np.ptp(d) + 1e-9)
+                offsets = u ** act.get("ripple_pow", 1.0) * act.get("ripple_s", beat * 2)
                 # Light ripple on the same wave: a white flash travelling outwards.
                 for k in range(8):
                     tk = t + offsets.max() * k / 7
@@ -383,6 +386,43 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 sf = lively_start(act["move"], dur)
             score.cues.append(Cue(t, "clip", dur, policy=act["move"], start_frame=sf,
                                   yaw=FACE_CAMERA, only=only))
+        elif do == "shatter":
+            # The picture breaks into tiles that drift apart (cracks open between them),
+            # twist a little, hang there while the tiles flash in a chase, then fit back.
+            nx, ny = act.get("tiles", [4, 4])
+            gap, tw = act.get("gap", 1.25), np.radians(act.get("twist", 1.5))
+            lo, hi = pos.min(0), pos.max(0) + 1e-6
+            ix = np.floor((pos[:, 0] - lo[0]) / (hi[0] - lo[0]) * nx).astype(int)
+            iy = np.floor((pos[:, 1] - lo[1]) / (hi[1] - lo[1]) * ny).astype(int)
+            off = np.zeros((n, 2))
+            for a in range(nx):
+                for b in range(ny):
+                    m = (ix == a) & (iy == b)
+                    if not m.any():
+                        continue
+                    c = pos[m].mean(0)
+                    th = tw if (a + b) % 2 == 0 else -tw
+                    R = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
+                    off[m] = (pos[m] - c) @ R.T + c - pos[m] + gap * np.array([a - (nx - 1) / 2,
+                                                                                b - (ny - 1) / 2])
+            ramp = act.get("ramp", 0.42)
+            vpk = 1.5 * np.linalg.norm(off, axis=1).max() / (ramp * dur)
+            if vpk > 0.8:
+                meta.setdefault("warnings", []).append(
+                    f"shatter at bar {act['bar']}: peak speed {vpk:.2f} m/s")
+            score.cues.append(Cue(t, "track", dur, yaw=FACE_CAMERA,
+                                  track={"offset": off, "ramp": ramp}))
+            # Chase: while the tiles hang apart, one diagonal of tiles flashes per beat.
+            t_hold = t + ramp * dur
+            nd = nx + ny - 1
+            for k in range(int(round((1 - 2 * ramp) * dur / beat))):
+                tb = t_hold + k * beat
+                diag = (ix + iy) == (k % nd)
+                c2 = cols.copy()
+                c2[diag] = c2[diag] * 0.4 + 0.6
+                score.lights.append(Light(tb, c2, np.ones(n), fade=0.03))
+                score.lights.append(Light(tb + beat * 0.6, cols.copy(), np.ones(n), fade=beat * 0.3))
+            meta["shatter_tiles"] = (ix, iy)
         elif do == "counter_march":
             # Alternate rows slide opposite ways by `cells` grid spacings, hold, come back.
             Mo = meta["mosaic"]

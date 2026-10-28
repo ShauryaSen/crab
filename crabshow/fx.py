@@ -63,7 +63,10 @@ class FX:
             t0 = c["at"] * self.bar
             v = np.stack([rng.normal(0, 1.6, n), rng.normal(0, 1.6, n),
                           rng.uniform(4.0, 8.5, n)], 1)
-            p0 = np.stack([rng.normal(0, 1.5, n), rng.normal(0, 1.5, n), np.zeros(n)], 1)
+            sp = c.get("spread", 1.5)
+            p0 = np.stack([rng.normal(0, sp, n), rng.normal(0, sp, n), np.zeros(n)], 1)
+            if c.get("around") == "hero" and plan.get("_hero") is not None:
+                p0[:, :2] += np.asarray(score.start[plan["_hero"]])[:2]
             hue = rng.uniform(0, 1, n)
             col = np.array([colorsys.hsv_to_rgb(h, 0.8, 1) for h in hue])
             spin = rng.uniform(0, 2 * np.pi, (n, 2))
