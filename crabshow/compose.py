@@ -560,26 +560,32 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 ys = pos[m, 1]
                 u = (ys.max() - ys) / (np.ptp(ys) + 1e-6)          # 0 at the top, 1 at the bottom
                 for i, ui in zip(m, u):
+                    if not act.get("move", True):
+                        # Still letters: the light drains down the stroke like liquid running
+                        # out, the top going dark first.
+                        g_at[i] = (t0 + ui * d * 0.7, act.get("drain_s", 0.6), 0.0)
+                        continue
                     k = int(d / 0.1) + 1
                     e = np.linspace(0, 1, k) ** act.get("accel", 2.0)   # a drop speeds up as it falls
                     drop = L * (0.25 + 0.75 * ui)
                     xy = pos[i] + np.outer(e, [0.0, -drop])
                     steps[i].append(("path", float(t0), 0.1, xy, np.full(k, FACE_CAMERA)))
-                    g_at[i] = (t0, d)
-            score.cues.append(Cue(t, "script", dur, yaw=FACE_CAMERA, track={"script": steps,
-                                                                            "stay": True}))
-            for k in range(int(dur / 0.25) + 1):
-                tk = t + k * 0.25
+                    g_at[i] = (t0, d * 1.3, act.get("hold", 0.0))
+            if act.get("move", True):
+                score.cues.append(Cue(t, "script", dur, yaw=FACE_CAMERA,
+                                      track={"script": steps, "stay": True}))
+            for k in range(int(dur / 0.1) + 1):
+                tk = t + k * 0.1
                 g2, c2 = glow.copy(), cols.copy()
-                for i, (t0, d) in g_at.items():
-                    f = float(np.clip((tk - t0) / (d * 1.3), 0, 1))
-                    hold = act.get("hold", 0.0)          # stay lit while running, then drain
-                    f = float(np.clip((f - hold) / (1 - hold), 0, 1))
+                for i, (t0, d, hold) in g_at.items():
+                    f = float(np.clip((tk - t0) / d, 0, 1))
+                    f = float(np.clip((f - hold) / (1 - hold), 0, 1))   # lit while running, then drain
                     g2[i] = glow[i] * (1 - f) ** 1.5
                     c2[i] = cols[i] * (1 - 0.6 * f) + np.array([0.05, 0.25, 0.08]) * 0.6 * f
-                score.lights.append(Light(tk, c2, g2, fade=0.25))
+                score.lights.append(Light(tk, c2, g2, fade=0.1))
             for i in g_at:
-                pos[i] = steps[i][0][3][-1]
+                if steps[i]:
+                    pos[i] = steps[i][0][3][-1]
             glow = np.zeros(n)
         elif do == "giant":
             # The whole picture plays a giant move through the lights (see giant.py).
