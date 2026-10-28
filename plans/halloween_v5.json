@@ -1,0 +1,248 @@
+{
+ "name": "halloween_v5",
+ "prompt": "crabs: it's halloween, become a jack-o'-lantern, light up, and say BOO!",
+ "n": 228,
+ "style": "moonbeach",
+ "bpm": 128,
+ "seed": 3,
+ "sections": [
+  [
+   "intro",
+   2
+  ],
+  [
+   "build",
+   4
+  ],
+  [
+   "drop",
+   8
+  ],
+  [
+   "outro",
+   3
+  ]
+ ],
+ "acts": [
+  {
+   "bar": 2,
+   "do": "light_up",
+   "palette": "pumpkin",
+   "bars": 0.25
+  },
+  {
+   "bar": 2.25,
+   "do": "form",
+   "shape": "pumpkin",
+   "dark_face": true,
+   "bars": 2.75,
+   "every": [
+    1,
+    0.25
+   ],
+   "amp": 0.035
+  },
+  {
+   "bar": 5,
+   "do": "bounce",
+   "bars": 1,
+   "every": 1,
+   "amp": 0.03
+  },
+  {
+   "bar": 6,
+   "do": "ignite",
+   "gap_beats": 1
+  },
+  {
+   "bar": 6.5,
+   "do": "flicker",
+   "bars": 1.5
+  },
+  {
+   "bar": 6.5,
+   "do": "bounce",
+   "bars": 1.5,
+   "every": 1,
+   "amp": 0.03
+  },
+  {
+   "bar": 8,
+   "do": "jump",
+   "bars": 0.5,
+   "ripple": "center",
+   "ripple_s": 0.35
+  },
+  {
+   "bar": 8.5,
+   "do": "scale",
+   "by": 1.15,
+   "bars": 1.25
+  },
+  {
+   "bar": 9.75,
+   "do": "form",
+   "text": "BOO!",
+   "bars": 2.5,
+   "palette": "ghost",
+   "every": 1,
+   "amp": 0.03,
+   "count": 90,
+   "runaway_m": 4.5
+  },
+  {
+   "bar": 12.25,
+   "do": "jump_party",
+   "bars": 1.5,
+   "per_bar": 1.0,
+   "on_beat": 0.5
+  },
+  {
+   "bar": 14.0,
+   "do": "drip",
+   "bars": 2.0,
+   "length": [
+    0.6,
+    1.6
+   ],
+   "spread": 0.5,
+   "still": 0.2
+  },
+  {
+   "bar": 16.25,
+   "do": "lights_out",
+   "bars": 0.6
+  }
+ ],
+ "fx": {},
+ "shots": [
+  {
+   "t": 0.0,
+   "kind": "wide",
+   "az": 90,
+   "el": -80,
+   "zoom": 1.0
+  },
+  {
+   "t": 3.75,
+   "kind": "wide",
+   "az": 90,
+   "el": [
+    -70,
+    -76
+   ],
+   "zoom": 1.0
+  },
+  {
+   "t": 6.5625,
+   "kind": "close",
+   "crab": "front",
+   "dist": [
+    1.4,
+    1.1
+   ],
+   "az": [
+    80,
+    100
+   ],
+   "el": -16
+  },
+  {
+   "t": 9.375,
+   "kind": "wide",
+   "az": 90,
+   "el": -86,
+   "zoom": 1.0
+  },
+  {
+   "t": 13.125,
+   "kind": "close",
+   "crab": "center",
+   "dist": [
+    1.8,
+    1.5
+   ],
+   "az": [
+    100,
+    80
+   ],
+   "el": -20
+  },
+  {
+   "t": 15.0,
+   "kind": "wide",
+   "az": [
+    70,
+    80
+   ],
+   "el": -28,
+   "zoom": 0.55
+  },
+  {
+   "t": 18.2812,
+   "kind": "wide",
+   "az": 90,
+   "el": -86,
+   "zoom": 1.0
+  },
+  {
+   "t": 22.5,
+   "kind": "close",
+   "crab": "center",
+   "dist": [
+    2.2,
+    1.8
+   ],
+   "az": [
+    110,
+    80
+   ],
+   "el": -22
+  },
+  {
+   "t": 24.8438,
+   "kind": "wide",
+   "az": [
+    80,
+    100
+   ],
+   "el": -40,
+   "zoom": 0.95
+  },
+  {
+   "t": 25.78125,
+   "kind": "wide",
+   "az": 90,
+   "el": -84,
+   "zoom": [
+    1.05,
+    1.12
+   ]
+  }
+ ],
+ "prompt_hold": 6.2,
+ "captions": [
+  {
+   "t0": 27.1875,
+   "t1": 31.775,
+   "y": 0.78,
+   "lines": [
+    [
+     "Happy Halloween",
+     0.7
+    ],
+    [
+     "from 228 robot crabs!",
+     0.6
+    ]
+   ]
+  }
+ ],
+ "music": "halloween_v5",
+ "sim_name": "halloween_v5",
+ "prompt_t0": 0.3,
+ "prompt_cps": 22.0,
+ "prompt_enter": 3.75,
+ "start_aspect": 1.5,
+ "start_gap": 1.15
+}

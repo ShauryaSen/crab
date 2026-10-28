@@ -536,6 +536,43 @@ def compose(plan: dict) -> tuple[Score, dict]:
             ho = sec("home")[1]
             key(ho, base[pidx], 1.0)
             cols, glow = pic_c, pic_g
+        elif do == "drip":
+            # The lit word runs like wet paint: in each column the stroke stretches down
+            # (the lowest crabs slide furthest, gathering speed like a falling drop), columns
+            # start at their own moments, and the light drains away as they go.
+            lit = np.nonzero(glow > 0.5)[0]
+            col = np.round(pos[lit, 0] / act.get("col_m", 0.45)).astype(int)
+            steps = [[] for _ in range(n)]
+            g_at = {}
+            for c in np.unique(col):
+                m = lit[col == c]
+                if rng.uniform() < act.get("still", 0.2):
+                    L = rng.uniform(0.1, 0.3)
+                else:
+                    L = rng.uniform(*act.get("length", [0.6, 1.6]))
+                t0 = t + rng.uniform(0, act.get("spread", 0.5)) * dur
+                d = rng.uniform(0.55, 0.75) * dur
+                ys = pos[m, 1]
+                u = (ys.max() - ys) / (np.ptp(ys) + 1e-6)          # 0 at the top, 1 at the bottom
+                for i, ui in zip(m, u):
+                    k = int(d / 0.1) + 1
+                    e = np.linspace(0, 1, k) ** 2                  # a drop speeds up as it falls
+                    drop = L * (0.25 + 0.75 * ui)
+                    xy = pos[i] + np.outer(e, [0.0, -drop])
+                    steps[i].append(("path", float(t0), 0.1, xy, np.full(k, FACE_CAMERA)))
+                    g_at[i] = (t0, d)
+            score.cues.append(Cue(t, "script", dur, yaw=FACE_CAMERA, track={"script": steps}))
+            for k in range(int(dur / 0.25) + 1):
+                tk = t + k * 0.25
+                g2, c2 = glow.copy(), cols.copy()
+                for i, (t0, d) in g_at.items():
+                    f = float(np.clip((tk - t0) / (d * 1.3), 0, 1))
+                    g2[i] = glow[i] * (1 - f) ** 1.5
+                    c2[i] = cols[i] * (1 - 0.6 * f) + np.array([0.05, 0.25, 0.08]) * 0.6 * f
+                score.lights.append(Light(tk, c2, g2, fade=0.25))
+            for i in g_at:
+                pos[i] = steps[i][0][3][-1]
+            glow = np.zeros(n)
         elif do == "giant":
             # The whole picture plays a giant move through the lights (see giant.py).
             score.movies.append({"t0": t, "t1": t + dur, "asset": act["asset"],

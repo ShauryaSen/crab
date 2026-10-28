@@ -641,6 +641,75 @@ def halloween_v3(bpm=128.0, seconds=31.875, prompt=None, t0=0.3, cps=22.0, enter
     return render(n, bpm, seconds, reverb_s=2.8, wet=0.32)
 
 
+
+def halloween_v5(bpm=128.0, seconds=31.875, prompt=None, t0=0.3, cps=22.0, enter_s=3.75):
+    """halloween_v3's music, uncut, with v4's sounds: a low organ pedal and a far-off bell
+    under the typing, and bells and thunder on the big hits. The BOO drips away under the
+    last chord (bars 14-16) with a few falling plinks."""
+    n = []
+    sb = bpm / 60.0                                   # seconds -> beats
+    E = enter_s * sb                                  # Enter, in beats (bar 2 = beat 8)
+    rng = np.random.default_rng(5)
+    if prompt:
+        for k, ch in enumerate(prompt):
+            ts = t0 + (k + 1) / cps
+            if ts < enter_s - 0.05:
+                n.append((ts * sb, 0, 76 + rng.integers(-3, 4) - (8 if ch == " " else 0),
+                          "keyclick", 0.55 + 0.15 * rng.uniform()))
+    n.append((0, E, 35, "organ", 0.18)); n.append((0, E, 47, "organ", 0.12))   # pedal drone
+    n.append((0.5, 0, 52, "bell", 0.25))                                         # far-off toll
+    n.append((E, 0, 52, "keyclick", 1.0)); n.append((E + 0.02, 0, 40, "keyclick", 0.8))   # Enter
+    # The Toccata on the keypress, bars 2-4.
+    for b, d, m in ((0, .25, 78), (.25, .25, 76), (.5, 1.75, 78),
+                    (2.5, .25, 76), (2.75, .25, 74), (3.0, .25, 73), (3.25, .25, 71),
+                    (3.5, .75, 70), (4.25, 1.75, 71)):
+        for o in (0, -12):
+            n.append((E + b, d, m + o, "organ", 0.9))
+    for m in (35, 47, 59, 62, 66):
+        n.append((E + 4.25, 1.75, m, "organ", 0.7))
+    n.append((E + 4.25, 0, 35, "gong", 0.6))
+    for k, m in enumerate((58, 61, 64, 67, 70)):
+        n.append((E + 6.0 + 0.3 * k, 2.0 - 0.3 * k, m, "organ", 0.5 + 0.08 * k))
+    # Bars 4-6: the first half of phrase A, sneaking on pizzicato and bassoon.
+    _line(n, MK_A, 16, "pizz", 0.55, shift=-12, upto=24)
+    _line(n, MK_A, 16, "reed", 0.35, shift=-12, stacc=0.5, upto=24)
+    for b in range(16, 24, 4):
+        n.append((b, 0, 47, "timpani", 0.15))
+    # Bar 6: the face ignites. Phrase B's first half, louder, with a timpani roll into 8.
+    n.append((24, 0, 30, "thunder", 0.9)); n.append((24, 0, 35, "gong", 0.6)); n.append((24, 0, 47, "bell", 0.6))
+    _line(n, MK_B, 24, "pizz", 0.7, shift=-12, upto=32)
+    _line(n, MK_B, 24, "strings", 0.45, stacc=0.6, upto=32)
+    _line(n, MK_B, 24, "reed", 0.45, shift=-12, stacc=0.5, upto=32)
+    for k in range(32):
+        n.append((28 + k * 0.125, 0, 42, "timpani", 0.15 + 0.6 * k / 32))
+    # Bars 8-12: the jump, the flight, BOO! Phrase A tutti.
+    n.append((32, 0, 59, "bell", 0.8)); n.append((32, 0, 35, "timpani", 1.0))
+    _line(n, MK_A, 32, "strings", 0.8, octaves=(0, 1), stacc=0.7)
+    _line(n, MK_A, 32, "brass", 0.6, shift=-12, stacc=0.45)
+    _line(n, MK_A, 32, "organ", 0.35, shift=-12, stacc=0.8)
+    for b in range(32, 48):
+        n.append((b, 0, 47 if b % 2 == 0 else 42, "timpani", 0.4))
+    # Bars 12-14: BOO! jumps. Phrase B tutti, up an octave.
+    n.append((48, 0, 47, "bell", 0.8)); n.append((48, 0, 30, "thunder", 0.5))
+    _line(n, MK_B, 48, "strings", 0.85, octaves=(0, 1), stacc=0.7, upto=56)
+    _line(n, MK_B, 48, "brass", 0.7, shift=-12, stacc=0.45, upto=56)
+    for b in range(48, 56):
+        n.append((b, 0, 42 if b % 2 else 47, "timpani", 0.45))
+    # Bar 14: hammer blows; bar 15: the last chord and the gong, ringing out.
+    for b in range(56, 60):
+        for m in (47, 59, 62, 66, 71):
+            n.append((b, 0.4, m, "brass", 0.75))
+            n.append((b, 0.4, m, "strings", 0.6))
+        n.append((b, 0, 35, "timpani", 0.9))
+    for m in (35, 47, 59, 62, 66, 71, 74):
+        n.append((60, 6, m, "organ", 0.9))
+    n.append((60, 0, 30, "thunder", 1.0)); n.append((60, 0, 35, "gong", 1.0))
+    n.append((60, 0, 47, "bell", 0.9)); n.append((62, 0, 47, "bell", 0.5))
+    drip = np.random.default_rng(9)
+    for b in sorted(drip.uniform(56.5, 64, 9)):                                   # the BOO drips
+        n.append((float(b), 0, int(drip.integers(84, 96)), "bell", 0.12))
+    return render(n, bpm, seconds, reverb_s=2.8, wet=0.32)
+
 def halloween_v4(bpm=128.0, seconds=22.03125, prompt=None, t0=0.3, cps=30.0, enter_s=2.8125):
     """The short cut. Typing over a low organ pedal and a far-off bell, Enter (beat 6), the
     Toccata as the crabs light up and march into the pumpkin, the Mountain King sneaking,
@@ -972,4 +1041,4 @@ def chiptune_v7(bpm=128.0, seconds=36.5625):
     return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
 
 
-PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4, "halloween_v3": halloween_v3, "chiptune_v5": chiptune_v5, "chiptune_v6": chiptune_v6, "chiptune_v7": chiptune_v7, "halloween_v4": halloween_v4}
+PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4, "halloween_v3": halloween_v3, "chiptune_v5": chiptune_v5, "chiptune_v6": chiptune_v6, "chiptune_v7": chiptune_v7, "halloween_v4": halloween_v4, "halloween_v5": halloween_v5}
