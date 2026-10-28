@@ -122,14 +122,19 @@ def build(cols=84, spacing=0.66, lum_min=0.06, extend=None):
     m = 0
     extra = np.zeros_like(filled)
     if extend:
-        z = np.load(extend)
-        m = int(z["margin"])
-        g = z["grid"]
-        assert g.shape[1:3] == (rows + 2 * m, cols + 2 * m), "asset made for another grid"
+        # One asset or several: every cell any of them ever lights gets a crab.
+        reach = None
+        for path in ([extend] if isinstance(extend, str) else extend):
+            z = np.load(path)
+            m = int(z["margin"])
+            g = z["grid"]
+            assert g.shape[1:3] == (rows + 2 * m, cols + 2 * m), "asset made for another grid"
+            r = (g.max(-1) > lum_min * 255).any(0)
+            reach = r if reach is None else reach | r
         pad = lambda a: np.pad(a, m)
         small = np.pad(small, ((m, m), (m, m), (0, 0)))
         filled, display, eo, eh, el = (pad(a) for a in (filled, display, eo, eh, el))
-        extra = (g.max(-1) > lum_min * 255).any(0) & ~filled
+        extra = reach & ~filled
     sel = filled | extra
     rr, cc = np.nonzero(sel)
     pts = np.stack([(cc - m - (cols - 1) / 2) * spacing, ((rows - 1) / 2 - (rr - m)) * spacing], 1)
