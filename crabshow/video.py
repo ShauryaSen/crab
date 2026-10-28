@@ -114,7 +114,8 @@ def shot_track(plan, logs, duration, width, height, score=None):
             far_look = np.array([cen[j][0], cen[j][1], 0.0])
             if "at" in s:
                 # Zoom to/from a fixed point (e.g. where a dolly ended), not a crab.
-                near_look = np.array([*s["at"][:2], s["at"][2] if len(s["at"]) > 2 else 0.03])
+                at_ = list(plan["_patch"]) + [0.06] if s["at"] == "patch" else s["at"]
+                near_look = np.array([*at_[:2], at_[2] if len(at_) > 2 else 0.03])
             else:
                 if k not in picked:
                     pk = s.get("crab", "center")
@@ -136,10 +137,18 @@ def shot_track(plan, logs, duration, width, height, score=None):
             a = picked[k]
             e = u * u * (3 - 2 * u)
             by = np.array([*s["by"][:2], s["by"][2] if len(s["by"]) > 2 else 0.02])
+            if s.get("ease") == "late":
+                # Gathers speed and height as it goes, then settles: travel, distance (log)
+                # and elevation all follow e = u^3 (4 - 3u), fastest two-thirds of the way.
+                e = u ** 3 * (4 - 3 * u)
+                d0, d1 = s.get("dist", [1.15, 5.0])
+                e0, e1 = s["el"] if isinstance(s.get("el"), list) else (el, el)
+                return a + by * e, float(d0 * (d1 / d0) ** e), az, e0 + (e1 - e0) * e
             return a + by * e, lerp(s.get("dist", [1.15, 5.0]), u), az, el
         if s.get("kind") == "pan":
             # A tracking shot gliding over the field from one point to another.
-            a, b = np.asarray(s["from"], float), np.asarray(s["to"], float)
+            a, b = (np.asarray(plan["_patch"] if v == "patch" else v, float)
+                    for v in (s["from"], s["to"]))
             e = u * u * (3 - 2 * u)
             look = np.array([*(a + (b - a) * e), s.get("z", 0.06)])
             return look, lerp(s.get("dist", 3.0), u), az, el

@@ -469,6 +469,64 @@ def compose(plan: dict) -> tuple[Score, dict]:
             score.cues.append(Cue(t, "variety", dur, yaw=FACE_CAMERA, track={"spec": spec},
                                   bob=_bob_spec({"every": 1, "amp": 0.03}, beat)))
             meta["variety"] = {"patch": patch, "moves": [names[k] for k in pick]}
+        elif do == "mob":
+            # The hero jumps on the drop, a jump ripples out, the crabs along the camera's
+            # path break ranks into a milling mob, one patch dances in sync (star, spin,
+            # heart, beat), and everyone scuttles home for the reform (see mob.py).
+            from . import mob as MB
+            B = lambda x: float(x) * bar
+            sec = lambda k: [B(v) for v in act[k]]
+            ev = MB.build(pos, rng, beat, hero=M["hero"], t_drop=t, path_to=act["path_to"],
+                          zone_m=act.get("zone_m", 12.0), patch_r=act.get("patch_r", 2.6),
+                          ripple_s=act.get("ripple_s", 6.0), ripple_pow=act.get("ripple_pow", 0.6),
+                          ripple_d=act.get("ripple_d", 20.0), star_t=sec("star"),
+                          spin_t=sec("spin"), heart_t=sec("heart"), beat_t=sec("beat"),
+                          home_t=sec("home"), home_by=B(act["home_by"]),
+                          party_until=B(act["party_until"]), dark=M["hole"],
+                          wander_m=act.get("wander_m", 2.6), sep=act.get("sep", 0.36),
+                          moves=act.get("moves"))
+            mm = ev["meta"]
+            meta["mob"] = mm
+            plan["_patch"] = [float(mm["P"][0]), float(mm["P"][1])]
+            score.cues.append(Cue(t - 0.4, "script", B(act["home_by"]) + 1.0 - (t - 0.4),
+                                  yaw=FACE_CAMERA, track={"script": ev["scripts"]}))
+            score.jumps += ev["jumps"]
+            score.poppers += ev["poppers"]
+            # Patch lights: rainbow star whose arms chase round, then a red heart that beats.
+            pidx, arm, part = mm["patch"], mm["arm"], mm["part"]
+            base = cols.copy()
+            hue = np.array([[1.0, 0.25, 0.3], [1.0, 0.8, 0.2], [0.3, 1.0, 0.45],
+                            [0.3, 0.7, 1.0], [0.85, 0.4, 1.0]])
+            star_c = np.where(arm[:, None] >= 0, hue[np.maximum(arm, 0)], 1.0)
+
+            def key(when, pc, fade, g=1.0):
+                c2, g2 = base.copy(), glow.copy()
+                c2[pidx], g2[pidx] = pc, g
+                score.lights.append(Light(when, c2, g2, fade=fade))
+            s0, s1 = sec("star")
+            key(s0, star_c, s1 - s0)
+            sp0, sp1 = sec("spin")
+            k8, tk = 0, sp0
+            while tk < sp1 - 1e-6:
+                lit = star_c.copy()
+                on = arm == (k8 % 5)
+                lit[on] = lit[on] * 0.3 + 0.7
+                lit[arm < 0] = hue[(k8 // 2) % 5]
+                key(tk, lit, 0.04)
+                tk += beat / 2
+                k8 += 1
+            h0, h1 = sec("heart")
+            red, pink = np.array([1.0, 0.12, 0.2]), np.array([1.0, 0.55, 0.75])
+            heart_c = np.where(part[:, None] == 1, pink, red)
+            key(h0, heart_c, h1 - h0)
+            b0, b1 = sec("beat")
+            tb = b0
+            while tb < b1 - 1e-6:
+                key(tb, heart_c * 0.3 + 0.7, 0.03)
+                key(tb + 0.08, heart_c, beat * 0.7)
+                tb += beat
+            ho = sec("home")[1]
+            key(ho, base[pidx], 1.0)
         elif do == "giant":
             # The whole picture plays a giant move through the lights (see giant.py).
             score.movies.append({"t0": t, "t1": t + dur, "asset": act["asset"],

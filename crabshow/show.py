@@ -143,6 +143,27 @@ def simulate_crab(args):
             rest = cue.t + cue.dur - c.t
             if rest > 0.01:
                 c.run_walk(rest, _hold_cmd(home, cue.yaw), posture=pst)
+        elif cue.kind == "script":
+            # A crab's own plan (see mob.py): jumps, clips and walked paths at set times;
+            # between them it holds where it stands, facing the way it last faced.
+            here, yh = home.copy(), cue.yaw
+            for st in cue.track["script"][i]:
+                t_st = st[1] - 0.3 if st[0] == "jump" else st[1]
+                if t_st - c.t > 0.01:
+                    c.run_walk(t_st - c.t, _hold_cmd(here, yh), posture=pst)
+                if st[0] == "jump":
+                    c.run_jump()
+                elif st[0] == "clip":
+                    if st[2] - c.t > 0.05:
+                        c.run_clip(st[3], st[2] - c.t, start_frame=st[4])
+                elif st[0] == "path":
+                    _, t0, dt, xy, yw = st
+                    t_end = t0 + dt * (len(xy) - 1)
+                    if t_end - c.t > 0.05:
+                        c.run_walk(t_end - c.t, _path_cmd(t0, dt, xy, yw))
+                    here, yh = np.asarray(xy[-1], float).copy(), float(yw[-1])
+            if cue.t + cue.dur - c.t > 0.01:
+                c.run_walk(cue.t + cue.dur - c.t, _hold_cmd(home, cue.yaw), posture=pst)
         elif cue.kind == "jump":
             delay = float(cue.offsets[i]) if cue.offsets is not None else 0.0
             pre = max(0.0, delay + (cue.t - c.t))
@@ -259,6 +280,24 @@ def _move_cmd(a, b, t0, dur, yaw_des):
         ref = a + (b - a) * _trap(s)
         vff = (b - a) * _dtrap(s) / dur
         return _body_cmd(crab, vff + 2.0 * (ref - crab.pos), yaw_des)
+    return f
+
+
+def _path_cmd(t0, dt, xy, yaw):
+    """Follow a planned walk: reference positions and headings sampled every dt from t0."""
+    xy, yaw = np.asarray(xy, float), np.asarray(yaw, float)
+    k = len(xy) - 1
+
+    def ref(t):
+        u = np.clip((t - t0) / dt, 0, k - 1e-9)
+        j = int(u)
+        f = u - j
+        return xy[j] + (xy[j + 1] - xy[j]) * f, yaw[j] + (yaw[j + 1] - yaw[j]) * f
+
+    def f(crab):
+        p, y = ref(crab.t)
+        p2, _ = ref(crab.t + 0.02)
+        return _body_cmd(crab, (p2 - p) / 0.02 + 2.0 * (p - crab.pos), y)
     return f
 
 
