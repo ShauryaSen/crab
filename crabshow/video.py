@@ -191,8 +191,9 @@ def bloom(img: Image.Image, strength=0.9, radius=18, threshold=110) -> Image.Ima
 
 
 def overlay_prompt(img: Image.Image, text: str, t: float, t0=0.3, cps=22.0, hold_until=7.0,
-                   fade=0.6):
-    """The prompt typed in a terminal-style box at the top of the frame."""
+                   fade=0.6, enter_t=None):
+    """The prompt typed in a terminal-style box at the top of the frame. With enter_t,
+    the cursor stops and the box flashes when Enter is pressed."""
     if t < t0 or t > hold_until + fade:
         return img
     shown = text[:int((t - t0) * cps)]
@@ -210,16 +211,19 @@ def overlay_prompt(img: Image.Image, text: str, t: float, t0=0.3, cps=22.0, hold
         else:
             cur = (cur + " " + w).strip() if cur else w
     lines.append(cur)
-    cursor = "█" if int(t * 2.5) % 2 == 0 else " "
+    entered = enter_t is not None and t >= enter_t
+    cursor = " " if entered else ("█" if int(t * 2.5) % 2 == 0 else " ")
     lines[-1] += cursor
+    flash = max(0.0, 1 - (t - enter_t) / 0.35) if entered else 0.0
     pad = int(size * 0.7)
     box_h = len(lines) * int(size * 1.35) + 2 * pad
     layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     x0, y0 = int(W * 0.06), int(H * 0.08)
     d.rounded_rectangle([x0, y0, W - x0, y0 + box_h], radius=int(size * 0.6),
-                        fill=(10, 12, 20, int(200 * alpha)), outline=(120, 255, 200, int(160 * alpha)),
-                        width=3)
+                        fill=(10, 12, 20, int(200 * alpha)),
+                        outline=(int(120 + 135 * flash), 255, int(200 + 55 * flash), int((160 + 95 * flash) * alpha)),
+                        width=3 + int(4 * flash))
     for k, line in enumerate(lines):
         d.text((x0 + pad, y0 + pad + k * int(size * 1.35)), line, font=font,
                fill=(160, 255, 210, int(255 * alpha)))
@@ -322,7 +326,8 @@ def frame_image(R, fx, plan, score, logs, t, camera, post=True):
         return img
     if plan.get("prompt"):
         img = overlay_prompt(img, plan["prompt"], t, t0=plan.get("prompt_t0", 0.3),
-                             hold_until=plan.get("prompt_hold", 6.0))
+                             hold_until=plan.get("prompt_hold", 6.0),
+                             cps=plan.get("prompt_cps", 22.0), enter_t=plan.get("prompt_enter"))
     for cap in plan.get("captions", []):
         if cap["t0"] <= t <= cap["t1"]:
             a = min(1.0, (t - cap["t0"]) / 0.4, (cap["t1"] - t) / 0.4)

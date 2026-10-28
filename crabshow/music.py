@@ -340,7 +340,11 @@ def soundtrack(plan):
 
     if name in arrange.PIECES:
         dur = sum(b for _, b in plan["sections"]) * 4 * 60.0 / plan["bpm"]
-        return arrange.PIECES[name](bpm=plan["bpm"], seconds=dur), name
+        kw = {}
+        if name == "halloween_v3":
+            kw = dict(prompt=plan.get("prompt"), t0=plan.get("prompt_t0", 0.3),
+                      cps=plan.get("prompt_cps", 22.0), enter_s=plan.get("prompt_enter", 3.75))
+        return arrange.PIECES[name](bpm=plan["bpm"], seconds=dur, **kw), name
     synth = synth_rave if name == "rave" else synth_track
     audio, _ = synth([tuple(s) for s in plan["sections"]], bpm=plan["bpm"])
     return audio, name

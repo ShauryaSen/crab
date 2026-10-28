@@ -155,6 +155,13 @@ def compose(plan: dict) -> tuple[Score, dict]:
         start = M["pts"].copy()
     else:
         start = scatter(n, plan.get("scatter_radius", 0.42 * np.sqrt(n)), plan.get("seed", 1))
+        if plan.get("start_aspect"):
+            # A loose grid shaped like the first formation, so nobody walks far into it.
+            a, sp = plan["start_aspect"], SPACING * plan.get("start_gap", 1.35)
+            cols = int(round(np.sqrt(n * a)))
+            k = np.arange(n)
+            g = np.stack([k % cols - (cols - 1) / 2, -(k // cols) + (np.ceil(n / cols) - 1) / 2], 1) * sp
+            start = g + np.random.default_rng(plan.get("seed", 1)).uniform(-1, 1, g.shape) * SPACING * 0.15
     score = Score(n=n, start=start, start_yaw=FACE_CAMERA, duration=total_bars * bar,
                   terrain=plan.get("terrain"))
     pos = start.copy()

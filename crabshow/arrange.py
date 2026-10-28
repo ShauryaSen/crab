@@ -180,20 +180,37 @@ def powerdown(f, n, v, rng):
     return np.sin(2 * np.pi * np.cumsum(fr) / SR) * np.exp(-t * 1.2) * v * 0.4
 
 
+def keyclick(f, n, v, rng):
+    """A mechanical key: a bright tick and a soft body thump."""
+    t = np.arange(n) / SR
+    tick = lfilter([1, -1], [1, -0.2], rng.standard_normal(n)) * np.exp(-t * 900)
+    body = np.sin(2 * np.pi * f * t) * np.exp(-t * 120)
+    return (0.6 * tick + 0.5 * body) * v * 0.7
+
+
+def wind(f, n, v, rng):
+    """Night wind: slowly wandering band-passed noise."""
+    t = np.arange(n) / SR
+    x = lfilter([0.02], [1, -0.98], rng.standard_normal(n))
+    x = x - lfilter([0.002], [1, -0.998], x)
+    swell = 0.6 + 0.4 * np.sin(2 * np.pi * 0.23 * t + 1.0)
+    return x * swell * np.minimum(1, t / 0.8) * v * 6.0
+
+
 INSTR = {"organ": organ, "pizz": pizz, "reed": reed, "strings": strings, "brass": brass,
          "timpani": timpani, "gong": gong, "crash": crash, "epiano": epiano, "clav": clav,
          "bass": bass, "square": square, "triangle": triangle, "blip": blip, "kick": kick,
          "snare": snare, "hat": hat, "chipnoise": chipnoise, "riser": riser,
-         "powerdown": powerdown}
+         "powerdown": powerdown, "keyclick": keyclick, "wind": wind}
 # Ring-out after a note ends, seconds.
 TAIL = {"organ": 0.4, "pizz": 0.6, "reed": 0.1, "strings": 0.3, "brass": 0.15,
         "timpani": 1.8, "gong": 4.0, "crash": 2.5, "epiano": 1.5, "clav": 0.3, "bass": 0.08,
         "square": 0.05, "triangle": 0.05, "blip": 0.3, "kick": 0.5, "snare": 0.35, "hat": 0.35,
-        "chipnoise": 0.3, "riser": 0.05, "powerdown": 2.0}
+        "chipnoise": 0.3, "riser": 0.05, "powerdown": 2.0, "keyclick": 0.05, "wind": 0.6}
 PAN = {"organ": 0.0, "pizz": -0.25, "reed": 0.2, "strings": -0.15, "brass": 0.25,
        "timpani": 0.1, "gong": 0.0, "crash": 0.3, "epiano": -0.2, "clav": 0.3, "bass": 0.0,
        "square": 0.1, "triangle": 0.0, "blip": 0.2, "kick": 0.0, "snare": 0.05, "hat": 0.25,
-       "chipnoise": -0.1, "riser": 0.0, "powerdown": 0.0}
+       "chipnoise": -0.1, "riser": 0.0, "powerdown": 0.0, "keyclick": 0.1, "wind": 0.0}
 
 
 def render(notes, bpm, seconds, reverb_s=2.4, wet=0.28, seed=11):
@@ -209,7 +226,7 @@ def render(notes, bpm, seconds, reverb_s=2.4, wet=0.28, seed=11):
             continue
         n = int((nb * beat + TAIL[ins]) * SR)
         x = INSTR[ins](_note(m), n, v, rng)
-        if ins in ("organ", "strings", "reed", "brass", "bass", "square", "triangle"):
+        if ins in ("organ", "strings", "reed", "brass", "bass", "square", "triangle", "wind"):
             # Hold for the written length, then release.
             x *= _env(n, 0.001, TAIL[ins] * 4, hold=nb * beat)
         x = x[:N - i0]
@@ -533,4 +550,69 @@ def chiptune_v4(bpm=128.0, seconds=33.75):
     return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
 
 
-PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4}
+def halloween_v3(bpm=128.0, seconds=31.875, prompt=None, t0=0.3, cps=22.0, enter_s=3.75):
+    """Typing first (key clicks over night wind), Enter, then the Toccata on the keypress as
+    the crabs light up, the Mountain King sneaking while the pumpkin forms, a crash as the
+    face ignites (bar 6), tutti from the jump (bar 8) through BOO!, hammer blows at 14 and
+    the last organ chord with a gong at 15."""
+    n = []
+    sb = bpm / 60.0                                   # seconds -> beats
+    E = enter_s * sb                                  # Enter, in beats (bar 2 = beat 8)
+    rng = np.random.default_rng(5)
+    if prompt:
+        for k, ch in enumerate(prompt):
+            ts = t0 + (k + 1) / cps
+            if ts < enter_s - 0.05:
+                n.append((ts * sb, 0, 76 + rng.integers(-3, 4) - (8 if ch == " " else 0),
+                          "keyclick", 0.55 + 0.15 * rng.uniform()))
+    n.append((0, E + 1, 40, "wind", 0.5))
+    n.append((E, 0, 52, "keyclick", 1.0)); n.append((E + 0.02, 0, 40, "keyclick", 0.8))   # Enter
+    # The Toccata on the keypress, bars 2-4.
+    for b, d, m in ((0, .25, 78), (.25, .25, 76), (.5, 1.75, 78),
+                    (2.5, .25, 76), (2.75, .25, 74), (3.0, .25, 73), (3.25, .25, 71),
+                    (3.5, .75, 70), (4.25, 1.75, 71)):
+        for o in (0, -12):
+            n.append((E + b, d, m + o, "organ", 0.9))
+    for m in (35, 47, 59, 62, 66):
+        n.append((E + 4.25, 1.75, m, "organ", 0.7))
+    n.append((E + 4.25, 0, 35, "gong", 0.6))
+    for k, m in enumerate((58, 61, 64, 67, 70)):
+        n.append((E + 6.0 + 0.3 * k, 2.0 - 0.3 * k, m, "organ", 0.5 + 0.08 * k))
+    # Bars 4-6: the first half of phrase A, sneaking on pizzicato and bassoon.
+    _line(n, MK_A, 16, "pizz", 0.55, shift=-12, upto=24)
+    _line(n, MK_A, 16, "reed", 0.35, shift=-12, stacc=0.5, upto=24)
+    for b in range(16, 24, 4):
+        n.append((b, 0, 47, "timpani", 0.15))
+    # Bar 6: the face ignites. Phrase B's first half, louder, with a timpani roll into 8.
+    n.append((24, 0, 0, "crash", 0.6)); n.append((24, 0, 35, "gong", 0.6))
+    _line(n, MK_B, 24, "pizz", 0.7, shift=-12, upto=32)
+    _line(n, MK_B, 24, "strings", 0.45, stacc=0.6, upto=32)
+    _line(n, MK_B, 24, "reed", 0.45, shift=-12, stacc=0.5, upto=32)
+    for k in range(32):
+        n.append((28 + k * 0.125, 0, 42, "timpani", 0.15 + 0.6 * k / 32))
+    # Bars 8-12: the jump, the flight, BOO! Phrase A tutti.
+    n.append((32, 0, 0, "crash", 0.9))
+    _line(n, MK_A, 32, "strings", 0.8, octaves=(0, 1), stacc=0.7)
+    _line(n, MK_A, 32, "brass", 0.6, shift=-12, stacc=0.45)
+    _line(n, MK_A, 32, "organ", 0.35, shift=-12, stacc=0.8)
+    for b in range(32, 48):
+        n.append((b, 0, 47 if b % 2 == 0 else 42, "timpani", 0.4))
+    # Bars 12-14: BOO! jumps. Phrase B tutti, up an octave.
+    n.append((48, 0, 0, "crash", 0.9))
+    _line(n, MK_B, 48, "strings", 0.85, octaves=(0, 1), stacc=0.7, upto=56)
+    _line(n, MK_B, 48, "brass", 0.7, shift=-12, stacc=0.45, upto=56)
+    for b in range(48, 56):
+        n.append((b, 0, 42 if b % 2 else 47, "timpani", 0.45))
+    # Bar 14: hammer blows; bar 15: the last chord and the gong, ringing out.
+    for b in range(56, 60):
+        for m in (47, 59, 62, 66, 71):
+            n.append((b, 0.4, m, "brass", 0.75))
+            n.append((b, 0.4, m, "strings", 0.6))
+        n.append((b, 0, 35, "timpani", 0.9))
+    for m in (35, 47, 59, 62, 66, 71, 74):
+        n.append((60, 6, m, "organ", 0.9))
+    n.append((60, 0, 0, "crash", 1.0)); n.append((60, 0, 35, "gong", 1.0))
+    return render(n, bpm, seconds, reverb_s=2.8, wet=0.32)
+
+
+PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4, "halloween_v3": halloween_v3}
