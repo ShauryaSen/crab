@@ -259,10 +259,11 @@
   "gain": 6.5,
   "sharp": [
    27.0,
-   999.0,
-   1.0
+   32.9,
+   0.9
   ],
-  "black": 3.0
+  "black": 3.0,
+  "k_after": 0.15
  },
  "music": "chiptune_v8",
  "hero_on": "happy"

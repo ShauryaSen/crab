@@ -319,7 +319,10 @@ def defocus(img, cfg, camera, height, t=None):
         t0, t1, ramp = cfg["sharp"]
         if t0 <= t:
             wb = w * float(np.clip((t - t1) / ramp, 0.0, 1.0))
-    sigma = float(cfg.get("k", 0.45) * cell_px * wb * wb * (3 - 2 * wb))
+    k = cfg.get("k", 0.45)
+    if t is not None and cfg.get("sharp") and t >= cfg["sharp"][1]:
+        k = cfg.get("k_after", k)                  # how much it softens once whole again
+    sigma = float(k * cell_px * wb * wb * (3 - 2 * wb))
     # Averaging in the dark gaps between crabs dims the picture; give that light back
     # (less when sharp: the dots themselves are not dimmed).
     gain = 1 + (cfg.get("gain", 2.0) - 1) * float(w) * (cfg.get("sharp_gain", 0.5) + (1 - cfg.get("sharp_gain", 0.5)) * float(wb / max(w, 1e-6)))
