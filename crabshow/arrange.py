@@ -1044,4 +1044,109 @@ def chiptune_v7(bpm=128.0, seconds=36.5625):
     return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
 
 
-PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4, "halloween_v3": halloween_v3, "chiptune_v5": chiptune_v5, "chiptune_v6": chiptune_v6, "chiptune_v7": chiptune_v7, "halloween_v4": halloween_v4, "halloween_v5": halloween_v5}
+def _chip_hit(n, b, v):
+    """An 8-bit accent in place of a cymbal: boom, stab, sparkle, tick."""
+    n.append((b, .35, 33, "triangle", 1.0 * v)); n.append((b + .12, .3, 26, "triangle", 0.8 * v))
+    for m in (69, 72, 76, 81):
+        n.append((b, .18, m, "square", 0.22 * v))
+    for k, m in enumerate((84, 88, 91, 96)):
+        n.append((b + .1 + k * .06, .1, m, "blip", 0.35 * v))
+    n.append((b, 0, 70, "chipnoise", 0.7 * v))
+
+
+def chiptune_v8(bpm=128.0, seconds=36.5625):
+    """chiptune_v7 without the cymbal: every crash is an 8-bit hit (a dropping triangle boom,
+    a square chord stab, a rising blip run, a short noise tick). On the v7 hero (beats): boot and smile 0-12, zoom in 12-20, the hero jumps on
+    the drop (20) and a jump ripples out, the mob parties 20-58, the star forms 35-41 and
+    spins 41-49 (a note per arm as the lights chase round), folds into a heart 49-55 that
+    beats 55-60, everyone scuttles home 58-70, the big crab is whole at 70, eyes open 71,
+    wink 73, smile 74.6, cut at 76.6."""
+    n = []
+    _boot(n, 3.0)
+    n.append((6.0, .2, 81, "blip", .5)); n.append((6.2, .3, 88, "blip", .5))     # blink
+    n.append((8.0, .3, 79, "blip", .5)); n.append((8.15, .4, 86, "blip", .5))    # eyes open
+    n.append((10.0, .3, 84, "blip", .6)); n.append((10.2, .6, 91, "blip", .6))   # smile
+    end = 19.15 * 4
+
+    def groove(b, ch, root, hats=True, snare=True):
+        for k in range(8):
+            n.append((b + k * .5, .45, root + (12 if k % 2 else 0), "triangle", 0.8))
+        for k in range(4):
+            n.append((b + k, .1, 36, "triangle", 1.0))
+            if hats:
+                n.append((b + k + .5, 0, 70, "chipnoise", 0.6))
+        if snare:
+            n.append((b + 1, 0, 1200, "chipnoise", 0.8)); n.append((b + 3, 0, 1200, "chipnoise", 0.8))
+        for off in (0, .75, 1.5, 2.25, 3):
+            for m in ch[1:3]:
+                n.append((b + off, .2, m, "square", 0.22))
+
+    def hook(b, vel=0.55):
+        for o, d, m in HOOK:
+            if b + o < end:
+                n.append((b + o, d * .9, m + 12, "square", vel))
+                n.append((b + o + .02, d * .9, m + 24, "square", 0.15))
+
+    for bar in range(20):
+        b = bar * 4
+        ch = CHORDS[bar % 2]
+        root = BASSROOT[bar % 2]
+        if bar < 3 or 17 <= bar:                              # calm arpeggio
+            for k in range(8):
+                if b + k * .5 < end:
+                    n.append((b + k * .5, .45, ch[k % 4] + 12, "square", 0.3))
+        if 3 <= bar < 5:                                      # zoom in: build
+            for k in range(16):
+                rise = (bar - 3) * 4 + k * .25
+                n.append((b + k * .25, .22, ch[k % 4] + 12 + (12 if rise >= 4 else 0),
+                          "square", 0.35 + 0.04 * rise))
+            for k in range(8):
+                n.append((b + k * .5, .45, root + (12 if k % 2 else 0), "triangle", 0.6))
+        if bar == 4:
+            for k in range(16):
+                n.append((16 + k * .25, 0, 1200, "chipnoise", 0.3 + 0.04 * k))
+                n.append((16 + k * .25, .25, 60 + k * 2, "square", 0.12 + 0.01 * k))
+        if 5 <= bar < 15:
+            groove(b, ch, root)
+        if 15 <= bar < 17:                                    # scuttling home: no snare
+            groove(b, ch, root, hats=False, snare=False)
+    # The drop: the hero takes off with a boing and lands with a thump.
+    n.append((20, 0, 1200, "chipnoise", 0.5)); _chip_hit(n, 20, 0.8)
+    for k in range(6):
+        n.append((19.7 + k * .05, .06, 67 + 4 * k, "square", 0.4))
+    n.append((21.1, .2, 31, "triangle", 1.0))
+    for k in range(12):                                       # the ripple races away
+        n.append((21.25 + k * .25, .12, 96 - 2 * k, "blip", 0.35 - 0.02 * k))
+    hook(20); hook(28)
+    for b in np.arange(24, 35, 1.0):                          # party sparkle on random 8ths
+        n.append((float(b) + 0.5 * (int(b) % 3 == 0), .12, 84 + 3 * (int(b) % 4), "blip", 0.25))
+    for k in range(24):                                       # the star gathers
+        n.append((35 + k * .25, .2, 72 + k, "blip", 0.2 + 0.01 * k))
+    pent = [84, 86, 88, 91, 93]
+    for k in range(16):                                       # spin: a note per arm
+        n.append((41 + k * .5, .3, pent[k % 5], "square", 0.4))
+        n.append((41 + k * .5, .3, pent[k % 5] - 12, "triangle", 0.3))
+    hook(41, 0.5)
+    _chip_hit(n, 49, 0.8)                     # fold into a heart
+    for k in range(12):
+        n.append((49 + k * .5, .4, CHORDS[0][k % 4] + 24, "square", 0.25))
+    hook(49, 0.6)
+    for b in np.arange(55, 60, 1.0):                          # the heart beats: lub-dub
+        n.append((float(b), .12, 33, "triangle", 1.0))
+        n.append((float(b) + .3, .1, 33, "triangle", 0.7))
+        n.append((float(b), .2, 93, "blip", 0.3))
+    for k in range(48):                                       # skitter home
+        n.append((58 + k * .25, 0, 1200, "chipnoise", 0.45 - 0.006 * k))
+        if k % 2 == 0:
+            n.append((58 + k * .25, .1, 79 - (k // 4), "blip", 0.25))
+    _chip_hit(n, 70, 0.8); n.append((70, .1, 36, "triangle", 1.0))    # whole again
+    for k in range(10):
+        n.append((70 + k * .06, .12, 84 + 2 * k, "blip", 0.45))
+    n.append((71.0, .3, 79, "blip", .5))                                          # eyes open
+    n.append((73.0, .2, 88, "blip", .6)); n.append((73.25, .3, 95, "blip", .6))   # wink
+    n.append((74.6, .3, 84, "blip", .6)); n.append((74.8, .5, 91, "blip", .6))    # smile
+    n.append((end, .1, 36, "triangle", 1.0)); n.append((end, 0, 1200, "chipnoise", 0.9))
+    n = [x for x in n if x[0] <= end]
+    return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
+
+PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4, "halloween_v3": halloween_v3, "chiptune_v5": chiptune_v5, "chiptune_v6": chiptune_v6, "chiptune_v7": chiptune_v7, "halloween_v4": halloween_v4, "halloween_v5": halloween_v5, "chiptune_v8": chiptune_v8}
