@@ -1,0 +1,209 @@
+<title>Crab Swarm Playbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one readable column on a night-stage ground; each idea is a block with its proof image beside or under it. Single dark look by design. */
+:root {
+  color-scheme: dark;
+  --ink: #0b0e19;        /* page: night stage */
+  --panel: #131a2c;      /* raised blocks */
+  --line: #24304a;       /* rules and borders */
+  --fg: #e9edf6;         /* body text */
+  --muted: #9aa6c0;      /* secondary text */
+  --coral: #ff6a4d;      /* crab shell: the accent */
+  --sea: #5fe1c8;        /* "proven" marks */
+  --amber: #ffc163;      /* effort / timing */
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+body { background: var(--ink); color: var(--fg); font: 400 16px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(30px, 6vw, 52px); line-height: 1.05; font-weight: 700; }
+h1 span { color: var(--coral); }
+h2 { font-size: clamp(20px, 3vw, 26px); font-weight: 700; margin-top: 56px; }
+h3 { font-size: 19px; font-weight: 500; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--sea); }
+a:focus-visible { outline: 2px solid var(--sea); outline-offset: 2px; }
+.kicker { font: 500 12px/1.4 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 18px; color: var(--fg); margin-top: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 18px; font: 400 13px var(--mono); color: var(--muted); }
+.stack { display: grid; gap: 14px; margin-top: 14px; }
+ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 70ch; }
+.idea { display: grid; gap: 16px; margin-top: 28px; padding-block: 24px; border-top: 1px solid var(--line); }
+.idea-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 16px; }
+.rank { font: 700 15px var(--mono); color: var(--coral); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font: 500 12px/1 var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); }
+.tag.proven { color: var(--sea); border-color: color-mix(in oklab, var(--sea) 45%, var(--line)); }
+.tag.time { color: var(--amber); border-color: color-mix(in oklab, var(--amber) 40%, var(--line)); }
+.hook { font-size: 18px; color: var(--fg); }
+.hook b { color: var(--coral); font-weight: 600; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; }
+.cols > div { min-width: 0; display: grid; gap: 8px; align-content: start; }
+.cols h4 { margin: 0; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+figure { margin: 0; display: grid; gap: 8px; }
+figure img, figure video { width: 100%; max-width: 100%; height: auto; border-radius: 4px; border: 1px solid var(--line); background: #000; display: block; }
+figcaption { font: 400 13px/1.5 var(--mono); color: var(--muted); }
+.hero-fig img { border-color: color-mix(in oklab, var(--coral) 40%, var(--line)); }
+.beats { display: grid; gap: 0; margin-top: 4px; counter-reset: beat; }
+.beats li { list-style: none; display: grid; grid-template-columns: 74px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.beats li span:first-child { font: 500 13px var(--mono); color: var(--amber); font-variant-numeric: tabular-nums; }
+.beats { padding: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--panel); }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 20px; display: grid; gap: 12px; }
+.ask li b { color: var(--coral); font-weight: 600; }
+@media (max-width: 720px) { .cols { grid-template-columns: 1fr; } .beats li { grid-template-columns: 60px 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">Jumper Crab Robot Challenge · round 2 and beyond</div>
+    <h1 style="margin-top:10px">What wins next: <span>one crab</span> that turns out to be a thousand</h1>
+    <p class="lede">Research says our lane is wide open. Nobody else is doing swarms, formations or prompt-driven shows, and the biggest rival group is 6–8 crabs. Overnight experiments say the boldest idea is buildable: 1,008 simulated crabs can pass for one robot until the camera dives in.</p>
+    <div class="meta"><span>Updated 28 Oct 2026</span><span>Round 1 post: v5 (ready)</span><span>Code: dev branch · videos: deliverables branch</span></div>
+  </header>
+
+  <h2>What the research found</h2>
+  <div class="cols" style="margin-top:16px">
+    <div>
+      <h4>The competition (about 25 entries on GitHub)</h4>
+      <ul>
+        <li><b>Crowded:</b> single-crab dance styles (tango, ballet, b-boy, Crab Rave moves), skins, household-chore demos, RL sumo and soccer, browser games, cinematic Blender shorts.</li>
+        <li><b>Open:</b> big synchronised swarms, formations that draw shapes and words, a full rave or stage show, and visible "prompt → show" AI. Every entry so far is sim-only.</li>
+        <li>None of the competitors show visible engagement yet; all have 0–1 stars.</li>
+        <li>The organisers pitch the toolkit as "describe it in one sentence and AI builds it", so our prompt-on-screen format matches their own story.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>What goes viral, and what experts trust</h4>
+      <ul>
+        <li><b>Hook in the first 1.5 s</b> with the most impossible frame. <b>Loop the ending</b> back to the start.</li>
+        <li><b>Scale reads instantly</b> (drone-show records, Kilobots). <b>Cuteness wins</b>: the original Jumper went viral because it danced on the beat and looked happy.</li>
+        <li><b>Fails are gold</b>, and real physics keeps them credible. <b>Participation</b> ("comment a word") compounds the audience score.</li>
+        <li>Experts trust <b>per-crab variation</b>, real contacts, robustness under pushes and stats, and an on-screen badge like <code>1.0× · MuJoCo · RL policy</code>. Identical motion everywhere reads as animation.</li>
+        <li>Length: 16–25 s for Shorts and Douyin, 30–45 s on X. Douyin co-organises the contest, so post there too if you can.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>The ideas, ranked</h2>
+
+  <section class="idea" aria-labelledby="i1">
+    <div class="idea-head"><span class="rank">#1</span><h3 id="i1">“It’s just one crab.”</h3>
+      <div class="tags"><span class="tag proven">mosaic proven</span><span class="tag proven">zoom proven</span><span class="tag time">round-2 hero · ~2 days</span></div></div>
+    <p class="hook">Open on what looks like a single Jumper robot. <b>Its eyes come online, blink, and turn happy.</b> The camera dives in… and it’s made of a thousand tiny crabs. One of them starts dancing, then they all do.</p>
+    <figure class="hero-fig"><img src="img/mosaic.jpg" alt="Left: a render of one Jumper. Then the same image built from 1,008 crabs seen from far away, a middle view showing the grid of crabs, and a close-up of individual crabs.">
+      <figcaption>Proof, last night. Left: a render of one Jumper. Then the same picture made of 1,008 crabs, each coloured as one pixel, first from far away, then mid-zoom, then up close.</figcaption></figure>
+    <ol class="beats" aria-label="Shot list">
+      <li><span>0:00</span><span>A still, low-res “photo” of one robot crab in the dark. Hold it 1 s so it reads as a single robot.</span></li>
+      <li><span>0:01</span><span>The face display flickers on: the pixel eyes light up, blink, then curve into happy ^ ^ eyes.</span></li>
+      <li><span>0:03</span><span>A powers-of-ten dive into the crab’s eye. The eye is a crab, and its own little eyes blink back at the camera.</span></li>
+      <li><span>0:06</span><span>That one crab starts dancing alone. The drop lands: zoom out to the whole field as the picture “breaks” and every crab jumps.</span></li>
+      <li><span>0:09</span><span>Marching-band routines, but more fun: pinwheels, counter-marching lines, the giant crab waving its claws, a word, a jump party.</span></li>
+      <li><span>0:20</span><span>Everyone runs back into place and the image reassembles into the single crab, which winks. The video loops to its first frame.</span></li>
+    </ol>
+    <div class="cols">
+      <figure><img src="img/zoom.jpg" alt="Twelve frames of a zoom from a giant crab made of 123 crabs down to one crab's face and back out."><figcaption>The zoom move works: from the giant crab down to one face and back out (123 crabs).</figcaption></figure>
+      <figure><img src="img/wave.jpg" alt="Frames of the giant crab made of crabs with its claws swinging in and out."><figcaption>The giant crab waves: the 26 crabs that make up the claws walk an arc on a 4-beat cycle.</figcaption></figure>
+    </div>
+    <div class="cols">
+      <div><h4>Why it wins</h4><ul><li>The reveal is a perfect hook and an instant loop.</li><li>“1,000 robots” reads in one frame, and the happy eyes add cuteness.</li><li>Experts see a thousand independent physics sims coordinating, not a VFX trick.</li></ul></div>
+      <div><h4>What it takes</h4><ul><li>The instanced crowd renderer is built. 2,500 crabs take about 24 s per frame, so a full video is about 1 hour on 24 cloud workers.</li><li>Still to do: high-detail models for the few crabs near the camera, splitting the simulation across workers, and the pixel-eye animation.</li></ul></div>
+    </div>
+    <figure><img src="img/crowd1024.jpg" alt="1,024 crabs on a grid seen from above and from a low angle."><figcaption>Scale test: 1,024 crabs drawn from one shared set of meshes, from overhead and at ground level.</figcaption></figure>
+  </section>
+
+  <section class="idea" aria-labelledby="i2">
+    <div class="idea-head"><span class="rank">#2</span><h3 id="i2">Halloween jack-o’-lantern</h3>
+      <div class="tags"><span class="tag proven">formation proven</span><span class="tag time">post 31 Oct · half a day</span></div></div>
+    <p class="hook">“<b>It’s Halloween. Become a jack-o’-lantern.</b>” 228 crabs light up orange, walk into a pumpkin with a glowing carved face, then the face “screams” as the crabs scatter in a jump party.</p>
+    <div class="cols">
+      <figure><img src="img/pumpkin.jpg" alt="228 crabs forming a dark orange pumpkin with a glowing yellow face, seen from above."><figcaption>228 crabs: dark skin, glowing face, green stem.</figcaption></figure>
+      <div><h4>Why it wins</h4><ul><li>Topical posts get a boost on the day, and it shows the prompt works for any shape, not only words.</li><li>Cheap: the same pipeline, and about 30 minutes on the workers.</li></ul><h4>Extensions</h4><ul><li>The pumpkin face blinks, the crabs flee into “BOO”, and a ghost made of white crabs drifts across.</li><li>Use the same trick for any holiday or meme: a turkey for Thanksgiving, a snowflake in December.</li></ul></div>
+    </div>
+  </section>
+
+  <section class="idea" aria-labelledby="i3">
+    <div class="idea-head"><span class="rank">#3</span><h3 id="i3">“Comment a word, the crabs spell it”</h3>
+      <div class="tags"><span class="tag proven">pipeline built</span><span class="tag time">ongoing · ~30 min per reply</span></div></div>
+    <p class="hook">Reply to commenters with a video of the swarm spelling their word. <b>Their comment appears on screen as the prompt.</b></p>
+    <ul><li>It feeds the 60% audience score directly. Every reply video is a fresh post, and commenters share their own.</li><li>The prompt parser already turns plain sentences into plans (“glow blue, form a spiral, jump on the drop, then spell X” rendered end to end). Short words read best: two or three letters, or four with more crabs.</li></ul>
+  </section>
+
+  <section class="idea" aria-labelledby="i4">
+    <div class="idea-head"><span class="rank">#4</span><h3 id="i4">“How hard can you shove a robot crab?”</h3>
+      <div class="tags"><span class="tag proven">stats measured</span><span class="tag time">~1 day</span></div></div>
+    <p class="hook">Escalating shoves (a tap, a kick, a cannonball) at crabs mid-dance, with a live scoreboard. <b>Some crabs get launched, do a full flip and land on their feet.</b></p>
+    <div class="tbl"><table>
+      <thead><tr><th>Shove (impulse)</th><th>≈ kick speed</th><th>Walking crabs still up</th><th>Dancing crabs still up</th></tr></thead>
+      <tbody>
+        <tr><td class="num">0.5–3 N·s</td><td class="num">0.2–1.2 m/s</td><td class="num">20 / 20</td><td class="num">20 / 20</td></tr>
+        <tr><td class="num">5 N·s</td><td class="num">2 m/s</td><td class="num">19 / 20</td><td class="num">20 / 20</td></tr>
+        <tr><td class="num">8 N·s</td><td class="num">3.2 m/s</td><td class="num">2 / 20</td><td class="num">7 / 20</td></tr>
+        <tr><td class="num">12 N·s</td><td class="num">4.8 m/s</td><td class="num">13 / 20 (flips!)</td><td class="num">7 / 20</td></tr>
+      </tbody></table></div>
+    <p>Measured last night: 20 trials per row with the official policies on a 2.5 kg crab. Robustness under pushes is the classic credibility clip in robotics, and the wipeouts make it funny.</p>
+  </section>
+
+  <section class="idea" aria-labelledby="i5">
+    <div class="idea-head"><span class="rank">#5</span><h3 id="i5">“Found footage: Crab Rave, 1996”</h3>
+      <div class="tags"><span class="tag proven">look built</span><span class="tag time">nearly free</span></div></div>
+    <p class="hook">The same show as a <b>VHS home video</b>: tape noise, tracking lines and a camcorder date stamp. Nostalgia plus absurdity, from footage we already have.</p>
+    <div class="cols">
+      <figure><video src="vhs.mp4" controls muted playsinline preload="metadata" aria-label="Nine-second VHS-styled clip of the crab rave drop"></video><figcaption>9-second VHS test of the v5 drop. Press play; sound is off until you unmute.</figcaption></figure>
+      <figure><img src="img/looks.jpg" alt="Grid comparing original frames with VHS, film, newsreel, 8-bit and CRT looks."><figcaption>Other looks: VHS, film grain, 1950s newsreel, 8-bit and CRT. A newsreel “Crab Parade of 1952” with title cards is another fun option.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="idea" aria-labelledby="i6">
+    <div class="idea-head"><span class="rank">#6</span><h3 id="i6">Later rounds: a crab you can direct live</h3>
+      <div class="tags"><span class="tag">bigger build</span><span class="tag time">round 3</span></div></div>
+    <p>A web page where anyone types a prompt and a small swarm performs it right there in the browser. Jumper’s controller already ships a browser build. This scores highest on “useful”, gives every post a link people can try, and is the strongest pitch for experts.</p>
+  </section>
+
+  <h2>Small things that lift every video</h2>
+  <ul style="margin-top:14px">
+    <li>Name one hero crab and bring it back in every video (it is the one the camera dives into).</li>
+    <li>Keep the corner badge <code>1.0× · MuJoCo · trained RL policy · no keyframes</code> on screen, and add bilingual EN/中文 captions.</li>
+    <li>Open on the most impossible frame, cut the Shorts/Douyin version to 16–25 s, and end on the first frame so it loops.</li>
+    <li>Post on Douyin with #螃蟹机器人开源动作大赛 #螃蟹机器人, tagging @梁不歪 and @金钢科技, if you or a friend has an account.</li>
+  </ul>
+
+  <h2>Proposed calendar</h2>
+  <div class="tbl" style="margin-top:14px"><table>
+    <thead><tr><th>When</th><th>Post</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="num">29–30 Oct</td><td>v5 “one prompt, 72 crabs” rave (X + Shorts, Douyin if possible)</td><td>Ready</td></tr>
+      <tr><td class="num">31 Oct</td><td>Halloween jack-o’-lantern</td><td>Proof done; render on your go</td></tr>
+      <tr><td class="num">1–2 Nov</td><td>How it works (render + mission control)</td><td>Ready</td></tr>
+      <tr><td class="num">3–5 Nov</td><td>Shove test or VHS found footage, plus the dunes blooper</td><td>Blooper ready</td></tr>
+      <tr><td class="num">~8–12 Nov</td><td>Round-2 hero: “It’s just one crab”</td><td>Core tech proven</td></tr>
+      <tr><td class="num">Ongoing</td><td>Reply videos within 24 h of good comments</td><td>Pipeline built</td></tr>
+    </tbody></table></div>
+
+  <h2>Where things stand</h2>
+  <div class="cols" style="margin-top:14px">
+    <figure><img src="img/v5.jpg" alt="Four close-up frames of crabs with glowing eyes from the v5 video."><figcaption>v5, the round-1 post: close-ups with glowing eyes, jump parties and camera cuts.</figcaption></figure>
+    <div class="panel ask">
+      <h4 style="margin:0;font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Decisions for you</h4>
+      <ul>
+        <li><b>Halloween:</b> say go, and I’ll render it in time for the 31st.</li>
+        <li><b>Hero idea:</b> say go, and I’ll build “It’s just one crab” over the next few days.</li>
+        <li><b>Before posting:</b> make the repo public, and send your handle if you want an end card.</li>
+        <li><b>Douyin:</b> do you, or someone you know, have an account to post from?</li>
+        <li><b>Spark:</b> run the session prompt when you can; it unlocks dances that follow any tempo and jumps on dunes.</li>
+      </ul>
+    </div>
+  </div>
+</div>
