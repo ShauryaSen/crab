@@ -53,7 +53,7 @@ def _render_source(w=800, h=660, ss=2):
 
 def build(cols=84, spacing=0.66, lum_min=0.06):
     """Returns dict: pts (n,2), cols (n,3), rc (n,2) grid row/col, hole (n,) bool,
-    eye_open (n,) bool, eye_happy (n,) bool, hero (index of the crab at the left eye)."""
+    eye_open / eye_happy / eye_line (n,) bool, hero (index of the crab at the left eye)."""
     CACHE.mkdir(parents=True, exist_ok=True)
     src_path = SOURCE if SOURCE.exists() else CACHE / "source_studio.png"
     if not src_path.exists():
@@ -76,7 +76,7 @@ def build(cols=84, spacing=0.66, lum_min=0.06):
     eye_c = [c0 + 0.27 * w, c0 + 0.73 * w]
     ax, ay = max(1.5, 0.12 * w), max(1.5, 0.36 * h)
 
-    pts, colors, rc, hole, eo, eh = [], [], [], [], [], []
+    pts, colors, rc, hole, eo, eh, el = [], [], [], [], [], [], []
     for r in range(rows):
         for c in range(cols):
             if not filled[r, c]:
@@ -91,11 +91,14 @@ def build(cols=84, spacing=0.66, lum_min=0.06):
             arc = any(abs(((c - ec) / ax) ** 2 + ((r - (rm + 0.35 * ay)) / (ay * 0.9)) ** 2 - 1)
                       < 0.45 and r <= rm + 0.35 * ay for ec in eye_c)
             eh.append(bool(display[r, c] and arc))
+            # Closed eye: a flat line across the eye's middle (for a wink).
+            line = any(abs(c - ec) <= ax * 0.95 for ec in eye_c) and abs(r - rm) <= max(0.6, 0.12 * ay)
+            el.append(bool(display[r, c] and line))
     pts, rc = np.array(pts), np.array(rc)
     eye_open = np.array(eo)
     # Hero: the crab nearest the centre of the left eye.
     d = (rc[:, 1] - eye_c[0]) ** 2 + (rc[:, 0] - rm) ** 2
     hero = int(np.argmin(np.where(eye_open, d, np.inf)))
     return {"pts": pts, "cols": np.array(colors), "rc": rc, "hole": np.array(hole),
-            "eye_open": eye_open, "eye_happy": np.array(eh), "hero": hero,
+            "eye_open": eye_open, "eye_happy": np.array(eh), "eye_line": np.array(el), "hero": hero,
             "grid": (rows, cols), "spacing": spacing}

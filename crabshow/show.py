@@ -118,6 +118,24 @@ def simulate_crab(args):
             rest = cue.t + cue.dur - c.t
             if rest > 0.01:
                 c.run_walk(rest, _hold_cmd(home, cue.yaw), posture=pst)
+        elif cue.kind == "variety":
+            sp = cue.track["spec"][i]
+            if sp[0] == "jumps":
+                for tj in sp[1]:
+                    pre = tj - 0.3 - c.t
+                    if pre > 0.01:
+                        c.run_walk(pre, _hold_cmd(home, cue.yaw), posture=pst)
+                    if tj + 1.0 > cue.t + cue.dur:
+                        break
+                    c.run_jump()
+            else:
+                _, mv, sf, delay = sp
+                if delay > 0.01:
+                    c.run_walk(delay, _hold_cmd(home, cue.yaw), posture=pst)
+                c.run_clip(mv, cue.t + cue.dur - c.t, start_frame=sf)
+            rest = cue.t + cue.dur - c.t
+            if rest > 0.01:
+                c.run_walk(rest, _hold_cmd(home, cue.yaw), posture=pst)
         elif cue.kind == "jump":
             delay = float(cue.offsets[i]) if cue.offsets is not None else 0.0
             pre = max(0.0, delay + (cue.t - c.t))

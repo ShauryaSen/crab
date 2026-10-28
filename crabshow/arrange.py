@@ -461,4 +461,76 @@ def chiptune(bpm=128.0, seconds=30.0):
     return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
 
 
-PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune}
+def chiptune_v4(bpm=128.0, seconds=33.75):
+    """8-bit, on the v4 hero: boot and smile 0-3, zoom 3-5 (build), drop at 5 into the
+    party 5-10, marching-band mix 10-15 (a hop per bar), reform at 15, settle, wink at
+    17, cut at 17.9."""
+    n = []
+    _boot(n, 3.0)
+    n.append((6.0, .2, 81, "blip", .5)); n.append((6.2, .3, 88, "blip", .5))     # blink
+    n.append((8.0, .3, 79, "blip", .5)); n.append((8.15, .4, 86, "blip", .5))    # eyes open
+    n.append((10.0, .3, 84, "blip", .6)); n.append((10.2, .6, 91, "blip", .6))   # smile
+    end = 17.9 * 4
+    for bar in range(18):
+        b = bar * 4
+        ch = CHORDS[bar % 2]
+        root = BASSROOT[bar % 2]
+        if bar < 3 or 15 <= bar < 17:                         # calm arpeggio
+            for k in range(8):
+                n.append((b + k * .5, .45, ch[k % 4] + 12, "square", 0.3 + 0.03 * (bar % 3)))
+        if bar == 17:
+            for k in range(8):
+                if b + k * .5 < end:
+                    n.append((b + k * .5, .45, ch[k % 4] + 12, "square", 0.3))
+        if 3 <= bar < 5:                                      # zoom in: build
+            for k in range(16):
+                rise = (bar - 3) * 4 + k * .25
+                n.append((b + k * .25, .22, ch[k % 4] + 12 + (12 if rise >= 4 else 0),
+                          "square", 0.35 + 0.04 * rise))
+            for k in range(8):
+                n.append((b + k * .5, .45, root + (12 if k % 2 else 0), "triangle", 0.6))
+        if bar == 4:
+            for k in range(16):
+                n.append((16 + k * .25, 0, 1200, "chipnoise", 0.3 + 0.04 * k))
+                n.append((16 + k * .25, .25, 60 + k * 2, "square", 0.12 + 0.01 * k))
+        if bar == 5:
+            n.append((20, 0, 1200, "chipnoise", 1.0)); n.append((20, 0, 1200, "crash", 0.6))
+        if 5 <= bar < 15:                                     # the groove
+            for k in range(8):
+                n.append((b + k * .5, .45, root + (12 if k % 2 else 0), "triangle", 0.8))
+            for k in range(4):
+                n.append((b + k, .1, 36, "triangle", 1.0))
+                n.append((b + k + .5, 0, 70, "chipnoise", 0.6))
+            n.append((b + 1, 0, 1200, "chipnoise", 0.8)); n.append((b + 3, 0, 1200, "chipnoise", 0.8))
+            for off in (0, .75, 1.5, 2.25, 3):
+                for m in ch[1:3]:
+                    n.append((b + off, .2, m, "square", 0.22))
+        if bar in (5, 7, 12):                                 # the hook
+            for o, d, m in HOOK:
+                n.append((b + o, d * .9, m + 12, "square", 0.55))
+                n.append((b + o + .02, d * .9, m + 24, "square", 0.15))
+        if 5 <= bar < 10:                                     # party: jump hits each bar
+            n.append((b, .15, 79, "blip", 0.35)); n.append((b + 2, .15, 83, "blip", 0.3))
+        if 10 <= bar < 15:                                    # marching band: rudiments + hop
+            for k in (0, .25, .5, 2, 2.25, 2.5, 3.5, 3.75):
+                n.append((b + k, 0, 1200, "chipnoise", 0.35))
+            for k, m in enumerate((84, 88, 91)):
+                n.append((b + k * .12, .15, m - (bar % 2) * 2, "blip", 0.45))
+        if bar in (10, 11):
+            for o, d, m in ((0, .5, 76), (.5, .5, 74), (1, 1, 72), (2, .5, 69), (2.5, .5, 72), (3, 1, 74)):
+                n.append((b + o, d * .9, m + 12, "square", 0.4))
+        if bar == 14:
+            for k in range(16):
+                n.append((56 + k * .25, 0, 1200, "chipnoise", 0.3 + 0.04 * k))
+    n.append((60, 0, 1200, "crash", 0.8)); n.append((60, .1, 36, "triangle", 1.0))   # reformed
+    for k in range(10):
+        n.append((60 + k * .06, .12, 84 + 2 * k, "blip", 0.45))
+    n.append((66.0, .3, 79, "blip", .5))                                          # eyes open
+    n.append((68.0, .2, 88, "blip", .6)); n.append((68.25, .3, 95, "blip", .6))   # wink
+    n.append((69.6, .3, 84, "blip", .6)); n.append((69.8, .5, 91, "blip", .6))    # smile
+    n.append((end, .1, 36, "triangle", 1.0)); n.append((end, 0, 1200, "chipnoise", 0.9))
+    n = [x for x in n if x[0] <= end]
+    return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
+
+
+PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4}

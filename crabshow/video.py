@@ -123,6 +123,12 @@ def shot_track(plan, logs, duration, width, height, score=None):
             dd = float(np.exp(np.log(d_far) + (np.log(d_near) - np.log(d_far)) * e))
             el = s.get("el_far", -89) + (s.get("el_near", -18) - s.get("el_far", -89)) * e
             return look, dd, az, el
+        if s.get("kind") == "pan":
+            # A tracking shot gliding over the field from one point to another.
+            a, b = np.asarray(s["from"], float), np.asarray(s["to"], float)
+            e = u * u * (3 - 2 * u)
+            look = np.array([*(a + (b - a) * e), s.get("z", 0.06)])
+            return look, lerp(s.get("dist", 3.0), u), az, el
         if s.get("kind") == "close":
             if k not in picked:
                 pk = s.get("crab", "front")

@@ -168,6 +168,12 @@ def compose(plan: dict) -> tuple[Score, dict]:
         glow = (~M["hole"]).astype(float)
         cols[M["hole"]] = 0.05
         score.lights.append(Light(0.0, cols.copy(), glow.copy(), fade=0.0))
+        if plan.get("hero_on") == "happy":
+            # Keep the hero lit while the eyes smile: the top of the left eye's ^ arc.
+            left = M["rc"][:, 1] < np.median(M["rc"][M["hole"], 1])
+            cand = np.nonzero(M["eye_happy"] & left)[0]
+            mid = np.median(M["rc"][cand, 1])
+            M["hero"] = int(cand[np.lexsort((np.abs(M["rc"][cand, 1] - mid), M["rc"][cand, 0]))[0]])
         meta["mosaic"] = M
         meta["hero"] = M["hero"]
 
@@ -370,9 +376,10 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 show(Mo["eye_open"], t + 0.16, 0.04)
             elif mode == "happy":
                 show(Mo["eye_happy"], t, 0.08)
-            elif mode == "wink":       # left eye closes to a ^, right stays open
-                show((Mo["eye_happy"] & left) | (Mo["eye_open"] & ~left), t, 0.05)
-                show(Mo["eye_happy"], t + act.get("hold", 0.5), 0.08)
+            elif mode == "wink":       # both open, the left one shuts to a line, opens again
+                show(Mo["eye_open"], t, 0.05)
+                show((Mo["eye_line"] & left) | (Mo["eye_open"] & ~left), t + act.get("lead", 0.35), 0.03)
+                show(Mo["eye_open"], t + act.get("lead", 0.35) + act.get("hold", 0.4), 0.03)
             elif mode == "open":
                 show(Mo["eye_open"], t, 0.08)
             else:
@@ -386,6 +393,42 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 sf = lively_start(act["move"], dur)
             score.cues.append(Cue(t, "clip", dur, policy=act["move"], start_frame=sf,
                                   yaw=FACE_CAMERA, only=only))
+        elif do == "variety":
+            # A party with a hundred different parties in it: the field is cut into patches
+            # and every patch does its own thing (a dance, a gesture, jumping together on the
+            # bar), starting in a ripple from the hero so the camera can watch it spread.
+            pm = act.get("patch_m", 4.0)
+            key = np.floor(pos / pm).astype(int)
+            _, patch = np.unique(key, axis=0, return_inverse=True)
+            patch = patch.ravel()
+            moves = act.get("moves", {"dance_dream_wings": 2, "dance_maze": 2, "jumps": 2.5,
+                                      "gesture_hello": 1, "gesture_paw": 1, "gesture_salute": 1,
+                                      "gesture_bow": 0.5})
+            names, w = list(moves), np.array(list(moves.values()), dtype=float)
+            pick = rng.choice(len(names), patch.max() + 1, p=w / w.sum())
+            c0 = origin_of(act)
+            pc = np.array([pos[patch == k].mean(0) for k in range(patch.max() + 1)])
+            pdist = np.linalg.norm(pc - c0, axis=1)
+            pdel = (pdist / (pdist.max() + 1e-9)) ** 0.5 * act.get("ripple_s", 2.0)
+            if M is not None:
+                hp = patch[M["hero"]]
+                pick[hp], pdel[hp] = names.index(act.get("hero_move", "dance_dream_wings")), 0.0
+            spec = []
+            for i in range(n):
+                k = patch[i]
+                mv, d0 = names[pick[k]], float(pdel[k])
+                if mv == "jumps":
+                    # Whole patch jumps together on the bar; half the patches on beat 3.
+                    first = t + np.ceil(d0 / beat) * beat + (2 * beat if k % 2 else 0)
+                    js = [float(x) for x in np.arange(first, t + dur - 1.0, bar)]
+                    score.jumps += [(i, x) for x in js]
+                    spec.append(("jumps", js))
+                else:
+                    sf = lively_start(mv, dur) if mv.startswith("dance") else 0
+                    spec.append(("clip", mv, sf, d0))
+            score.cues.append(Cue(t, "variety", dur, yaw=FACE_CAMERA, track={"spec": spec},
+                                  bob=_bob_spec({"every": 1, "amp": 0.03}, beat)))
+            meta["variety"] = {"patch": patch, "moves": [names[k] for k in pick]}
         elif do == "mix":
             # Square-dance shuffle. Each step cuts the grid into 2x2 blocks (offset by one
             # cell on alternate steps) and every full block turns its four crabs one place,
@@ -421,7 +464,7 @@ def compose(plan: dict) -> tuple[Score, dict]:
             fs = crab_slot
             cols, glow = cols[fs], glow[fs]
             score.lights.append(Light(t + dur, cols.copy(), glow.copy(), fade=0.0))
-            for key in ("hole", "eye_open", "eye_happy", "rc"):
+            for key in ("hole", "eye_open", "eye_happy", "eye_line", "rc"):
                 Mo[key] = Mo[key][fs]
             pos = slot_pos[fs]
             meta["mix_moved"] = int((fs != np.arange(n)).sum())
