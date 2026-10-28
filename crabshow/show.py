@@ -52,6 +52,7 @@ class Score:
     jumps: list = field(default_factory=list)   # (crab, take-off time) for render effects
     movies: list = field(default_factory=list)  # giant moves played through the lights
     poppers: list = field(default_factory=list) # (crab, time): a confetti popper goes off
+    faces: dict = field(default_factory=dict)   # crab -> [(t0, t1, expression)] on its display
 
 
 RAMP = 0.25   # fraction of a move spent accelerating (and again decelerating)
@@ -162,9 +163,10 @@ def simulate_crab(args):
                     if t_end - c.t > 0.05:
                         c.run_walk(t_end - c.t, _path_cmd(t0, dt, xy, yw))
                     here, yh = np.asarray(xy[-1], float).copy(), float(yw[-1])
-            # Wherever the script left the crab is home now (a mob crab's last walk ends on
-            # its own slot; a dripping letter stays where it ran to).
-            home = here
+            # A dripping letter stays where it ran to; everyone else settles on their slot
+            # (a mob crab's last walk ends there, or within a step of it).
+            if cue.track.get("stay"):
+                home = here
             if cue.t + cue.dur - c.t > 0.01:
                 c.run_walk(cue.t + cue.dur - c.t, _hold_cmd(home, cue.yaw), posture=pst)
         elif cue.kind == "jump":

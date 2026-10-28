@@ -67,6 +67,7 @@ class CrowdRenderer:
         self.cols = np.ones((n, 3))
         self.glow = np.ones(n)
         self.eyes = True
+        self.faces = {}             # crab -> [(t0, t1, expression)], see _eyes
 
     # Renderer-compatible API -------------------------------------------------
     def set_poses(self, qposes):
@@ -184,22 +185,69 @@ class CrowdRenderer:
             keep += 1
         scn.ngeom = keep
 
+    def face_at(self, i, t):
+        for t0, t1, kind in self.faces.get(int(i), ()):
+            if t0 <= t < t1:
+                return kind
+        return None
+
     def _eyes(self, scn, d, g, col, gl, t, beat, i, blink_every=4.0):
+        """The crab's face display. By default two ovals that blink now and then; a face
+        schedule can swap in an expression: happy ^ ^, squint > <, wink, surprised O O,
+        sleepy - -, or pink heart eyes."""
         p = d.geom_xpos[g]
         R = d.geom_xmat[g].reshape(3, 3)
         nrm, up, across = R[:, 0], R[:, 1], R[:, 2]
-        ph = (t / beat + (i * 0.37) % blink_every) % blink_every
-        open_ = 1.0 if ph > 0.18 else max(0.12, abs(ph - 0.09) / 0.09)
         c = (0.55 + 0.45 * np.asarray(col)) * gl
+        kind = self.face_at(i, t)
+        if kind == "heart":
+            c = np.array([1.0, 0.35, 0.6]) * max(gl, 0.6)
+        rgba = np.array([*c, 1.0], np.float32)
         mat = np.stack([nrm, up, across], 1).ravel()
-        for s in (-1, 1):
+
+        def geom():
             if scn.ngeom >= scn.maxgeom:
-                return
+                return None
             vg = scn.geoms[scn.ngeom]
-            pos = p + nrm * 0.0035 + across * (s * 0.024) + up * 0.002
-            mujoco.mjv_initGeom(vg, mujoco.mjtGeom.mjGEOM_ELLIPSOID,
-                                np.array([0.0015, 0.0085 * open_, 0.0065]), pos, mat,
-                                np.array([*c, 1.0], np.float32))
-            vg.emission = 1.0
-            vg.category = mujoco.mjtCatBit.mjCAT_DECOR
             scn.ngeom += 1
+            return vg
+
+        def oval(e, h, w):
+            vg = geom()
+            if vg is None:
+                return
+            mujoco.mjv_initGeom(vg, mujoco.mjtGeom.mjGEOM_ELLIPSOID, np.array([0.0015, h, w]),
+                                e, mat, rgba)
+            vg.emission, vg.category = 1.0, mujoco.mjtCatBit.mjCAT_DECOR
+
+        def stroke(e, a, b, width=0.0011):
+            vg = geom()
+            if vg is None:
+                return
+            pa = e + across * a[0] + up * a[1]
+            pb = e + across * b[0] + up * b[1]
+            mujoco.mjv_initGeom(vg, mujoco.mjtGeom.mjGEOM_CAPSULE, np.zeros(3), np.zeros(3),
+                                np.eye(3).ravel(), rgba)
+            mujoco.mjv_connector(vg, mujoco.mjtGeom.mjGEOM_CAPSULE, width, pa, pb)
+            vg.emission, vg.category = 1.0, mujoco.mjtCatBit.mjCAT_DECOR
+
+        for s_ in (-1, 1):
+            e = p + nrm * 0.0035 + across * (s_ * 0.024) + up * 0.002
+            if kind in ("happy",) or (kind == "wink" and s_ < 0):
+                stroke(e, (-0.0065, -0.003), (0.0, 0.004)); stroke(e, (0.0, 0.004), (0.0065, -0.003))
+            elif kind == "squint":
+                tip = -0.0055 * s_
+                stroke(e, (-tip, 0.0045), (tip, 0.0)); stroke(e, (tip, 0.0), (-tip, -0.0045))
+            elif kind == "sleepy":
+                stroke(e, (-0.0065, -0.0015), (0.0065, -0.0015))
+            elif kind == "surprised":
+                oval(e, 0.011, 0.0095)
+            elif kind == "heart":
+                stroke(e, (0.0, -0.0065), (-0.006, 0.001), 0.0016)
+                stroke(e, (0.0, -0.0065), (0.006, 0.001), 0.0016)
+                oval(e + across * -0.003 + up * 0.0022, 0.0034, 0.0034)
+                oval(e + across * 0.003 + up * 0.0022, 0.0034, 0.0034)
+            else:
+                ph = (t / beat + (i * 0.37) % blink_every) % blink_every
+                open_ = 1.0 if ph > 0.18 else max(0.12, abs(ph - 0.09) / 0.09)
+                oval(e, 0.0085 * open_, 0.0065)

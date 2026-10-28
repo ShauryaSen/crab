@@ -133,7 +133,12 @@ def shot_track(plan, logs, duration, width, height, score=None):
             if k not in picked:
                 pk = s.get("crab", "hero")
                 i = plan["_hero"] if pk == "hero" else int(pk)
-                picked[k] = np.asarray(sample([logs[i]], s["t"])[0][:3]) + np.array([0, 0, 0.03])
+                if score is not None:
+                    # Anchor on the crab's slot, not where it happens to be (mid-jump), so
+                    # the next shot can pick up exactly where this one ends.
+                    picked[k] = np.array([*score.start[i], s.get("z", 0.06) - 0.02])
+                else:
+                    picked[k] = np.asarray(sample([logs[i]], s["t"])[0][:3]) + np.array([0, 0, 0.03])
             a = picked[k]
             e = u * u * (3 - 2 * u)
             by = np.array([*s["by"][:2], s["by"][2] if len(s["by"]) > 2 else 0.02])
@@ -320,7 +325,10 @@ def defocus(img, cfg, camera, height, t=None):
     gain = 1 + (cfg.get("gain", 2.0) - 1) * float(w) * (cfg.get("sharp_gain", 0.5) + (1 - cfg.get("sharp_gain", 0.5)) * float(wb / max(w, 1e-6)))
     if sigma <= 0.3 and gain <= 1.01:
         return img
-    a = np.asarray(img if sigma <= 0.3 else img.filter(ImageFilter.GaussianBlur(sigma))).astype(np.float32) * gain
+    a = np.asarray(img if sigma <= 0.3 else img.filter(ImageFilter.GaussianBlur(sigma))).astype(np.float32)
+    # A black point first, so the dim floor (and the light spot on it) is not boosted into
+    # view along with the crabs.
+    a = np.maximum(a - cfg.get("black", 0.0) * float(w), 0.0) * gain
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
 
 
@@ -344,6 +352,7 @@ def frame_image(R, fx, plan, score, logs, t, camera, post=True):
             draw_eyes(scn, t, R.data, R.display, cols, glow, beat)
     if crowd:
         R.eyes = plan.get("eyes", True)
+        R.faces = getattr(score, "faces", {})
         img = Image.fromarray(R.frame(*camera, extra=extra, t=t, beat=beat))
     else:
         img = Image.fromarray(R.frame(*camera, extra=extra))

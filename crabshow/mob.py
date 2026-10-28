@@ -78,7 +78,7 @@ def _smooth(x):
 def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, ripple_pow,
           ripple_d, star_t, spin_t, heart_t, beat_t, home_t, home_by, party_until,
           dark=None, wander_m=2.6, speed=(0.25, 0.55), hot_m2=30.0, sep=0.36,
-          moves=None, popper_frac=0.04):
+          moves=None, popper_frac=0.04, hype_t=None, wave2_t=None, wave2_v=3.5, pace=0.5):
     """Plan the whole party. Times are in seconds. Returns a dict with per-crab scripts,
     jump and popper events, the patch (indices, arms) and the light keys of the patch."""
     n = len(pos)
@@ -194,18 +194,42 @@ def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, r
         done = (mode == 2) & (t >= busy_until)
         mode[done] = 1
         target[done] = _new_target(rng, home[done], hot, wander_m)
-        go_home = (t >= ret) & (mode != 3) & (mode != 4)
+        back = done & (t >= ret)                     # a stop on the way home: carry on home
+        mode[back], target[back] = 3, home[back]
+        # Head home at the planned time, or sooner if the distance needs it: everyone walks
+        # home at a comfortable pace and is there 1.5 s before home_by.
+        slack = (home_by - 1.5 - t) * pace - (np.linalg.norm(p - home, axis=1) + 0.3)
+        due = (t >= ret) | ((slack < 0) & ~is_patch & (mode != 0))
+        go_home = due & (mode != 3) & (mode != 4) & (mode != 2)
         mode[go_home] = 3
         target[go_home] = home[go_home]
+        # When the heart forms, a jump ripples out from it through the mob: everyone the
+        # front reaches who is walking (or about to) stops and jumps.
+        if wave2_t is not None and t >= wave2_t:
+            r1 = (t - wave2_t) * wave2_v
+            dd = np.linalg.norm(p - P, axis=1)
+            spare = (home_by - 1.5 - (t + 1.4)) * pace - (np.linalg.norm(p - home, axis=1) + 0.3)
+            hit = ~is_patch & (dd > r1 - wave2_v * DT) & (dd <= r1) & (spare > 0) & \
+                ((mode == 1) | (mode == 0) | (mode == 3))
+            for q in np.nonzero(hit)[0]:
+                events[q].append((t - 0.6, "jump", None))
+                mode[q], busy_until[q] = 2, t + 1.4
         # Walkers that reach their target pick the next thing to do.
         reached = (mode == 1) & (np.linalg.norm(target - p, axis=1) < 0.15)
         for q in np.nonzero(reached)[0]:
-            if t > ret[q] - 4.0:
+            if t > ret[q] - 4.0 or slack[q] < 2.0:
                 target[q] = _new_target(rng, home[q:q + 1], hot, wander_m * 0.5)[0]
                 continue
             r = rng.uniform()
-            if r < 0.30:
+            hype = hype_t is not None and hype_t[0] <= t < hype_t[1]
+            # Keep feet free for the heart's ripple: nobody starts a long dance just before it.
+            calm = wave2_t is not None and wave2_t - 4.5 <= t < wave2_t + 4.0
+            if calm and (wave2_t is None or t < wave2_t + np.linalg.norm(p[q] - P) / wave2_v):
+                r = 1.0                                # walk on until the wave reaches you
+            if r < (0.6 if hype else 0.30):
                 mv = mv_names[rng.choice(len(mv_names), p=mv_w)]
+                if hype and rng.uniform() < 0.7:
+                    mv = "jumps"
                 dur = rng.uniform(2.0, 4.0)
                 if mv == "jumps":
                     events[q].append((t, "jump", None))
@@ -227,7 +251,7 @@ def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, r
             # Hurry if late: reach home by home_by whatever happens.
             left = np.maximum(home_by - 0.6 - t, 0.3)
             need = dist[:, 0] / left
-            sp = np.where(mode == 3, np.clip(np.maximum(sp, need * 1.15), 0, 0.8), sp)
+            sp = np.where(mode == 3, np.clip(np.maximum(sp, need * 1.15), 0, pace + 0.15), sp)
         v[walk] = (dv / dist * np.minimum(sp[:, None], dist / 0.5))[walk]
         # Keep out of the dancing patch while it dances.
         if t < home_t[1]:
@@ -281,8 +305,12 @@ def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, r
     # for those jumps, so cut their path there.
     jump_at = {}
     for kk, q in enumerate(patch_pos_rows):
+        js = set()
         if part[pq[kk]] == 1:
-            jump_at[q] = [float(x) for x in np.arange(beat_t[0], beat_t[1] - 1.0, 4 * beat)]
+            js |= {float(x) for x in np.arange(beat_t[0], beat_t[1] - 1.0, 4 * beat)}
+        if wave2_t is not None:
+            js.add(float(wave2_t))                 # the whole heart pops as it forms
+        jump_at[q] = sorted(js)
 
     # ---- scripts from the recordings ----
     tgrid = t0 + np.arange(steps) * DT
@@ -356,10 +384,45 @@ def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, r
         else:
             sf = int(rng.integers(0, 150)) if mv.startswith("dance") else 0
             scripts[i].append(("clip", float(t_s), float(party_until), mv, sf))
+    # ---- faces: a little soul. The hero smiles throughout; the patch smiles while it
+    # spins and makes heart eyes once it is a heart; mob crabs pull faces now and then
+    # and squint when they jump. (Own random stream: faces never change the motion.)
+    frng = np.random.default_rng(int(7e6 + n))
+    faces = {int(hero): [(0.0, float(home_by), "happy")]}
+    kinds = ["happy", "squint", "wink", "surprised", "heart", "sleepy"]
+    kw = np.array([0.32, 0.18, 0.14, 0.14, 0.12, 0.10])
+    jumps_of = {}
+    for i, tj in jumps:
+        jumps_of.setdefault(i, []).append(tj)
+    for q in range(na):
+        i = int(A[q])
+        if i == hero:
+            continue
+        if is_patch[q]:
+            faces[i] = [(float(star_t[0]), float(spin_t[1]), "happy"),
+                        (float(heart_t[0]), float(home_t[1]), "heart")]
+            continue
+        eps = []
+        for tj in jumps_of.get(i, [])[1:]:             # not the first, grid-wide ripple jump
+            if frng.uniform() < 0.6:
+                eps.append((tj - 0.4, tj + 1.1, "squint"))
+        for _ in range(int(frng.integers(1, 4))):
+            a = frng.uniform(release[q] + 0.5, max(release[q] + 0.6, home_t[0] - 1.5))
+            eps.append((a, a + frng.uniform(1.2, 3.5), kinds[frng.choice(len(kinds), p=kw)]))
+        eps.sort()
+        keep = []
+        for e in eps:
+            if not keep or e[0] >= keep[-1][1]:
+                keep.append((float(e[0]), float(e[1]), e[2]))
+        faces[i] = keep
+    for i in rest:
+        if frng.uniform() < 0.15:
+            a = frng.uniform(t_jump[i] + 1.5, party_until - 2.0)
+            faces[int(i)] = [(float(a), float(a + frng.uniform(1.5, 3.5)), "happy")]
     meta["t_jump"] = t_jump
     meta["patch_at"] = patch_at
     meta["rec"] = (tgrid, A, rec_p)
-    return {"scripts": scripts, "jumps": jumps, "poppers": poppers, "meta": meta}
+    return {"scripts": scripts, "jumps": jumps, "poppers": poppers, "faces": faces, "meta": meta}
 
 
 def _smooth_path(xy, w=5):

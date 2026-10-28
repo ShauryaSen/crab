@@ -484,7 +484,10 @@ def compose(plan: dict) -> tuple[Score, dict]:
                           home_t=sec("home"), home_by=B(act["home_by"]),
                           party_until=B(act["party_until"]), dark=M["hole"],
                           wander_m=act.get("wander_m", 2.6), sep=act.get("sep", 0.36),
-                          moves=act.get("moves"))
+                          moves=act.get("moves"),
+                          hype_t=sec("hype") if "hype" in act else None,
+                          wave2_t=B(act["wave2"]) if "wave2" in act else None,
+                          wave2_v=act.get("wave2_v", 3.5), pace=act.get("pace", 0.5))
             mm = ev["meta"]
             meta["mob"] = mm
             plan["_patch"] = [float(mm["P"][0]), float(mm["P"][1])]
@@ -492,6 +495,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
                                   yaw=FACE_CAMERA, track={"script": ev["scripts"]}))
             score.jumps += ev["jumps"]
             score.poppers += ev["poppers"]
+            if act.get("faces", False):
+                score.faces.update(ev["faces"])
             # Patch lights: rainbow star whose arms chase round, then a red heart that beats.
             pidx, arm, part = mm["patch"], mm["arm"], mm["part"]
             # While the party is on, the face display's crabs glow like a dim screen, so the
@@ -561,7 +566,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
                     xy = pos[i] + np.outer(e, [0.0, -drop])
                     steps[i].append(("path", float(t0), 0.1, xy, np.full(k, FACE_CAMERA)))
                     g_at[i] = (t0, d)
-            score.cues.append(Cue(t, "script", dur, yaw=FACE_CAMERA, track={"script": steps}))
+            score.cues.append(Cue(t, "script", dur, yaw=FACE_CAMERA, track={"script": steps,
+                                                                            "stay": True}))
             for k in range(int(dur / 0.25) + 1):
                 tk = t + k * 0.25
                 g2, c2 = glow.copy(), cols.copy()
