@@ -84,7 +84,7 @@
       "do": "form",
       "text": "BOO!",
       "bars": 2.75,
-      "palette": "spooky",
+      "palette": "ghost",
       "every": 1,
       "amp": 0.03,
       "count": 90,

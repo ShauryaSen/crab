@@ -46,6 +46,7 @@ PALETTES = {
     "white": lambda p, n: [(1.0, 1.0, 1.0)] * n,
     "spooky": lambda p, n: [colorsys.hsv_to_rgb(0.78 - 0.45 * t, 0.85, 1)
                             for t in (p[:, 0] - p[:, 0].min()) / (np.ptp(p[:, 0]) + 1e-9)],
+    "ghost": lambda p, n: [(0.35 + 0.15 * t, 1.0, 0.3 + 0.1 * t) for t in np.linspace(0, 1, n)],
     "pumpkin": lambda p, n: [(1.0, 0.42 + 0.1 * t, 0.02) for t in np.linspace(0, 1, n)],
 }
 
