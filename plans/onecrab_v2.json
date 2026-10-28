@@ -103,16 +103,7 @@
       "mode": "off"
     }
   ],
-  "fx": {
-    "confetti": [
-      {
-        "at": 5,
-        "n": 350,
-        "around": "hero",
-        "spread": 0.6
-      }
-    ]
-  },
+  "fx": {},
   "bloom": {
     "strength": 1.0,
     "radius": 10,
