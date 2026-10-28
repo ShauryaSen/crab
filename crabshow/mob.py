@@ -148,7 +148,7 @@ def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, r
     is_patch = patch[A]
     home = pos[A].copy()
     p = home.copy()
-    release = t_jump[A] + 1.7 + rng.uniform(0, 1.2, na)
+    release = t_jump[A] + 1.35 + rng.uniform(0, 0.8, na)
     ret = home_t[0] + rng.uniform(0, home_t[1] - home_t[0], na)
     ret[is_patch] = home_t[1]                      # the patch leaves last, all together
     spd = rng.uniform(*speed, na)

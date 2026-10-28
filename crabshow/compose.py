@@ -494,6 +494,14 @@ def compose(plan: dict) -> tuple[Score, dict]:
             score.poppers += ev["poppers"]
             # Patch lights: rainbow star whose arms chase round, then a red heart that beats.
             pidx, arm, part = mm["patch"], mm["arm"], mm["part"]
+            # While the party is on, the face display's crabs glow like a dim screen, so the
+            # camera does not cross a black hole; dark again before the picture re-forms.
+            back = M["hole"] & (glow < 0.5)
+            pic_c, pic_g = cols.copy(), glow.copy()
+            cols, glow = cols.copy(), glow.copy()
+            cols[back], glow[back] = act.get("screen", [0.22, 0.26, 0.42]), 0.6
+            score.lights.append(Light(t + 0.6, cols.copy(), glow.copy(), fade=0.8))
+            score.lights.append(Light(B(act["home_by"]) - 1.2, pic_c.copy(), pic_g.copy(), fade=1.0))
             base = cols.copy()
             hue = np.array([[1.0, 0.25, 0.3], [1.0, 0.8, 0.2], [0.3, 1.0, 0.45],
                             [0.3, 0.7, 1.0], [0.85, 0.4, 1.0]])
@@ -527,6 +535,7 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 tb += beat
             ho = sec("home")[1]
             key(ho, base[pidx], 1.0)
+            cols, glow = pic_c, pic_g
         elif do == "giant":
             # The whole picture plays a giant move through the lights (see giant.py).
             score.movies.append({"t0": t, "t1": t + dur, "asset": act["asset"],
