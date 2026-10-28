@@ -184,3 +184,23 @@ CRAB_ART = [
 ]
 CRAB_PALETTE = {"R": (1.0, 0.18, 0.12), "O": (1.0, 0.55, 0.1), "W": (1.0, 1.0, 1.0),
                 "K": (0.15, 0.6, 1.0)}
+
+
+# Jack-o'-lantern (original art): O orange skin, G stem, Y glowing eyes/mouth.
+PUMPKIN_ART = [
+    "..........GG.........",
+    ".........GG..........",
+    "....OOOOOOOOOOOOO....",
+    "..OOOOOOOOOOOOOOOOO..",
+    ".OOOOOOOOOOOOOOOOOOO.",
+    "OOOOYYYOOOOOOOYYYOOOO",
+    "OOOYYYYYOOOOOYYYYYOOO",
+    "OOOOOOOOOOYOOOOOOOOOO",
+    "OOOOOOOOOYYYOOOOOOOOO",
+    "OOOYOOOOOOOOOOOOOYOOO",
+    "OOOYYOYYOYYYOYYOYYOOO",
+    ".OOOYYYYYYYYYYYYYOOO.",
+    "..OOOOYYOOYOOYYOOOO..",
+    "....OOOOOOOOOOOOO....",
+]
+PUMPKIN_PALETTE = {"O": (0.55, 0.16, 0.0), "G": (0.15, 0.5, 0.1), "Y": (1.0, 0.95, 0.55)}

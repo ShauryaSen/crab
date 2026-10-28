@@ -1,0 +1,64 @@
+{
+  "name": "exp_pumpkin",
+  "prompt": "crabs: it's Halloween. become a jack-o'-lantern",
+  "n": 228,
+  "style": "moonbeach",
+  "bpm": 128,
+  "seed": 3,
+  "sections": [
+    [
+      "intro",
+      2
+    ],
+    [
+      "build",
+      4
+    ],
+    [
+      "drop",
+      2
+    ]
+  ],
+  "acts": [
+    {
+      "bar": 0.25,
+      "do": "light_up",
+      "palette": "gold",
+      "bars": 1.5
+    },
+    {
+      "bar": 2,
+      "do": "form",
+      "shape": "pumpkin",
+      "bars": 3.5
+    },
+    {
+      "bar": 6,
+      "do": "jump_party",
+      "bars": 2,
+      "per_bar": 1.0,
+      "on_beat": 0.4
+    }
+  ],
+  "fx": {},
+  "shots": [
+    {
+      "t": 0,
+      "kind": "wide",
+      "az": 90,
+      "el": -89,
+      "zoom": 1.05
+    },
+    {
+      "t": 11.25,
+      "kind": "wide",
+      "az": [
+        80,
+        100
+      ],
+      "el": -60,
+      "zoom": 0.95
+    }
+  ],
+  "prompt_hold": 4
+}

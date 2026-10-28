@@ -167,9 +167,12 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 score.lights.append(Light(t + k * span / n, cols.copy(), glow.copy(), fade=0.08))
         elif do == "form":
             img_cols = None
-            if act.get("shape") == "pixel_crab":
-                goal, img_cols = F.pixel_art(F.CRAB_ART, F.CRAB_PALETTE, act.get("spacing", 0.8))
-                assert len(goal) == n, f"pixel_crab needs n={len(goal)} crabs"
+            arts = {"pixel_crab": (F.CRAB_ART, F.CRAB_PALETTE),
+                    "pumpkin": (F.PUMPKIN_ART, F.PUMPKIN_PALETTE)}
+            if act.get("shape") in arts:
+                art, pal = arts[act["shape"]]
+                goal, img_cols = F.pixel_art(art, pal, act.get("spacing", 0.8))
+                assert len(goal) == n, f"{act['shape']} needs n={len(goal)} crabs"
             else:
                 goal = shape_points(act, n)
             # Shift the new shape to where the swarm already is, then assign.
