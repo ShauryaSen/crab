@@ -261,6 +261,26 @@ def make_renderer(score, plan, width, height):
                     terrain=plan.get("terrain"))
 
 
+def defocus(img, cfg, camera, height):
+    """Lens defocus that tracks how big one crab cell is on screen. A regular grid of
+    crabs a few pixels apart aliases into moire when the frame is downscaled; a blur of
+    about half a cell removes the grid and keeps the picture. It fades out as the camera
+    closes in, like a focus pull."""
+    from PIL import ImageFilter
+
+    dist = float(camera[1])
+    cell_px = cfg.get("cell", 0.66) * (height / 2) / np.tan(np.radians(22.5)) / max(dist, 1e-3)
+    lo, hi = cfg.get("fade", [8.0, 20.0])
+    w = np.clip((hi - cell_px) / (hi - lo), 0.0, 1.0)
+    sigma = float(cfg.get("k", 0.45) * cell_px * w * w * (3 - 2 * w))
+    if sigma <= 0.3:
+        return img
+    # Averaging in the dark gaps between crabs dims the picture; give that light back.
+    gain = 1 + (cfg.get("gain", 2.0) - 1) * float(w)
+    a = np.asarray(img.filter(ImageFilter.GaussianBlur(sigma))).astype(np.float32) * gain
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+
+
 def frame_image(R, fx, plan, score, logs, t, camera, post=True):
     """One finished frame: poses, lights, effects, eyes, bloom, overlays."""
     from .crowd import CrowdRenderer
@@ -284,6 +304,8 @@ def frame_image(R, fx, plan, score, logs, t, camera, post=True):
         img = Image.fromarray(R.frame(*camera, extra=extra, t=t, beat=beat))
     else:
         img = Image.fromarray(R.frame(*camera, extra=extra))
+    if plan.get("defocus"):
+        img = defocus(img, plan["defocus"], camera, R.H)
     if R.style.glow > 0:
         b = plan.get("bloom", {})
         img = bloom(img, strength=b.get("strength", 0.9), radius=b.get("radius", 18),

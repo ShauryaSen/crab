@@ -330,5 +330,14 @@
     ],
     "floor_reflect": 0.06
   },
-  "look": "grain"
+  "look": "grain",
+  "defocus": {
+    "cell": 0.66,
+    "k": 0.45,
+    "fade": [
+      8.0,
+      20.0
+    ],
+    "gain": 2.4
+  }
 }
