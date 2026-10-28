@@ -17,7 +17,8 @@ from crabshow.runtime import DATA
 from crabshow.video import bloom, defocus
 from crabshow.looks import grain
 
-grid = np.load(sys.argv[1]).astype(float) / 255          # (F, rows, cols, 3)
+_z = np.load(sys.argv[1])
+grid = (_z["grid"] if hasattr(_z, "files") else _z).astype(float) / 255   # (F, rows, cols, 3)
 dst = Path(sys.argv[2])
 W, H = (int(x) for x in (sys.argv[3] if len(sys.argv) > 3 else "540x675").split("x"))
 F, rows, cols, _ = grid.shape

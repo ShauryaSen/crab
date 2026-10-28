@@ -22,7 +22,14 @@ def build_asset(move, secs, start_frame=0, cols=160, margin=14, fps=15, lum_min=
     from .runtime import Crab
 
     c = Crab(0, 0, -np.pi / 2, 0, None)
-    c.run_clip(move, secs, start_frame=start_frame)
+    if move == "jump":
+        # Settle, crouch-and-jump, land; the rest of the time stands.
+        c.run_jump()
+        if secs > c.t:
+            from .show import _hold_cmd
+            c.run_walk(secs - c.t, _hold_cmd(np.array([0.0, 0.0]), -np.pi / 2))
+    else:
+        c.run_clip(move, secs, start_frame=start_frame)
     t, q = np.array(c.log_t), np.array(c.log_qpos)
     q = q[np.clip(np.searchsorted(t, np.arange(0, secs, 1 / fps)), 0, len(q) - 1)]
     q[:, :2] -= q[0, :2]
