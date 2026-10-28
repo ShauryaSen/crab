@@ -272,6 +272,8 @@ def defocus(img, cfg, camera, height):
     cell_px = cfg.get("cell", 0.66) * (height / 2) / np.tan(np.radians(22.5)) / max(dist, 1e-3)
     lo, hi = cfg.get("fade", [8.0, 20.0])
     w = np.clip((hi - cell_px) / (hi - lo), 0.0, 1.0)
+    # Only looking down on the grid does it alias; low shots have real depth and stay sharp.
+    w *= np.clip((abs(float(camera[3])) - 35.0) / 25.0, 0.0, 1.0)
     sigma = float(cfg.get("k", 0.45) * cell_px * w * w * (3 - 2 * w))
     if sigma <= 0.3:
         return img

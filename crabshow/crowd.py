@@ -27,7 +27,8 @@ PARK = -60.0
 class CrowdRenderer:
     def __init__(self, n, colors, style="moonbeach", width=1080, height=1350, terrain=None,
                  faces_far=2500, faces_near=60000, near_n=24, near_m=7.0, max_geom=None,
-                 dot_px=7.0, mesh_cap=3000, dot_size=(0.10, 0.19, 0.045), dot_dim=0.75):
+                 dot_px=7.0, mesh_cap=3000, dot_size=(0.10, 0.19, 0.045), dot_dim=0.75,
+                 mesh_glow=0.4):
         self.style = STYLES[style] if isinstance(style, str) else style
         self.n, self.W, self.H = n, width, height
         self.model = build_scene(2, np.ones((2, 3)), self.style, width, height, terrain,
@@ -47,6 +48,8 @@ class CrowdRenderer:
         self.near_n, self.near_m = near_n, near_m
         self.dot_px, self.mesh_cap, self.dot_size = dot_px, mesh_cap, np.asarray(dot_size)
         self.dot_dim = dot_dim
+        # Glow tuned to read on a few-pixel dot blows out on a crab filling the frame.
+        self.mesh_glow = mesh_glow
         root = [m.body(f"c{k}_base_link").id for k in (0, 1)]
         self.geoms, self.shell, self.rgba, self.big = [], [], [], []
         for k in (0, 1):
@@ -114,6 +117,8 @@ class CrowdRenderer:
             gl = float(gl_all[i])
             col = self.cols[i]
             shell = shell_all[i]
+            # Blend toward mesh_glow as the crab grows from a dot to a close-up.
+            gk = 1.0 - (1.0 - self.mesh_glow) * float(np.clip((px[i] - 20.0) / 80.0, 0.0, 1.0))
             far_part = (k == FAR) and dist[i] > 9.0
             for j, g in enumerate(self.geoms[k]):
                 if far_part and not self.big[k][j]:
@@ -125,7 +130,7 @@ class CrowdRenderer:
                 mujoco.mjv_initGeom(vg, mujoco.mjtGeom.mjGEOM_MESH, np.ones(3), d.geom_xpos[g],
                                     d.geom_xmat[g], rgba)
                 vg.dataid = 2 * m.geom_dataid[g]
-                vg.emission = em * gl if self.shell[k][j] else 0.0
+                vg.emission = em * gl * gk if self.shell[k][j] else 0.0
                 vg.specular, vg.shininess = 0.5, 0.6
                 vg.category = mujoco.mjtCatBit.mjCAT_DYNAMIC
                 scn.ngeom += 1

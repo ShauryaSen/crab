@@ -51,6 +51,11 @@
       "mode": "happy"
     },
     {
+      "bar": 3.0,
+      "do": "eyes",
+      "mode": "open"
+    },
+    {
       "bar": 4.75,
       "do": "solo",
       "move": "dance_brazilian",
@@ -123,58 +128,6 @@
     }
   ],
   "fx": {
-    "floor": {
-      "from": 6,
-      "tile": 1.32,
-      "half": 56,
-      "pattern": "ripple",
-      "energy": [
-        [
-          0,
-          0
-        ],
-        [
-          5.99,
-          0
-        ],
-        [
-          6,
-          0.35
-        ],
-        [
-          9,
-          0.3
-        ],
-        [
-          10.5,
-          0.2
-        ],
-        [
-          13,
-          0.3
-        ],
-        [
-          14.25,
-          0
-        ],
-        [
-          16,
-          0
-        ]
-      ]
-    },
-    "lasers": [
-      {
-        "from": 6,
-        "to": 9,
-        "n": 14
-      },
-      {
-        "from": 12,
-        "to": 14,
-        "n": 14
-      }
-    ],
     "pillars": [
       {
         "at": 6,
@@ -215,23 +168,23 @@
       "crab": "hero",
       "az": 90,
       "zoom_far": 1.0,
-      "dist_near": 0.9,
+      "dist_near": 1.15,
       "el_far": -89.5,
-      "el_near": -16
+      "el_near": -26
     },
     {
       "t": 8.90625,
       "kind": "close",
       "crab": "hero",
       "dist": [
-        1.0,
-        1.25
+        1.15,
+        1.35
       ],
       "az": [
         90,
         115
       ],
-      "el": -14
+      "el": -26
     },
     {
       "t": 11.25,
@@ -240,9 +193,9 @@
       "out": true,
       "az": 90,
       "zoom_far": 0.75,
-      "dist_near": 1.2,
+      "dist_near": 1.3,
       "el_far": -60,
-      "el_near": -14
+      "el_near": -26
     },
     {
       "t": 13.125,
