@@ -142,6 +142,24 @@ def _track_cmd(home, cue, i):
     """Follow a target that swings about a pivot: theta(t) = w * amp * sin(2 pi t / period).
     Crabs with weight 0 stand still; the rest sweep an arc (a waving claw)."""
     tr = cue.track
+    if "path" in tr:
+        # Waypoints, one hop per step: move for `move` of the step, then settle.
+        P = np.asarray(tr["path"][i], dtype=float)
+        K = len(P) - 1
+        mv = tr.get("move", 0.85)
+
+        def ref_p(t):
+            u = np.clip((t - cue.t) / cue.dur, 0, 1) * K
+            k = min(int(u), K - 1)
+            f = np.clip((u - k) / mv, 0, 1)
+            return P[k] + (P[k + 1] - P[k]) * (f * f * (3 - 2 * f))
+
+        def f_path(crab):
+            t = crab.t
+            p, p2 = ref_p(t), ref_p(t + 0.02)
+            v = (p2 - p) / 0.02 + 2.0 * (p - crab.pos)
+            return _body_cmd(crab, v, cue.yaw)
+        return f_path
     if "offset" in tr:
         off = np.asarray(tr["offset"][i], dtype=float)
         ramp = tr.get("ramp", 0.4)

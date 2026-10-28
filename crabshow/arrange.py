@@ -392,7 +392,7 @@ def disco(bpm=128.0, seconds=30.0):
 def chiptune(bpm=128.0, seconds=30.0):
     """8-bit, laid out on the one-crab hero: boot 0-3, zoom in 3-5 (build), drop at 5 as
     the camera reaches the hero, dance spreads 5-8, the picture shatters 8-10.5, tiles
-    flash 10.5-11.5, come back together 11.5-14, wink and power down 14-16."""
+    mix 8-14 (a hop per bar), reform at 14, smile, wink, cut at 15.85."""
     n = []
     _boot(n, 3.0)                                             # eyes boot (bar 0.75)
     n.append((6.0, .2, 81, "blip", .5)); n.append((6.2, .3, 88, "blip", .5))     # blink
@@ -431,36 +431,33 @@ def chiptune(bpm=128.0, seconds=30.0):
             for off in (0, .75, 1.5, 2.25, 3):
                 for m in ch[1:3]:
                     n.append((b + off, .2, m, "square", 0.22))
-        if bar in (5, 7, 12):                                # the hook
+        if bar in (5, 7, 10, 12):                            # the hook
             for o, d, m in HOOK:
                 n.append((b + o, d * .9, m + 12, "square", 0.55))
                 n.append((b + o + .02, d * .9, m + 24, "square", 0.15))
-        if bar == 8:                                          # it breaks apart: glitch run down
-            n.append((32, 0, 1200, "crash", 0.5))
-            for k in range(12):
-                n.append((32 + k * .125, .12, 96 - k * 3, "square", 0.45))
-        if 8 <= bar < 10:                                     # drifting: answer phrase
+        if 8 <= bar < 14:                                     # the mix: a hop on every step
+            for k, m in enumerate((84, 88, 91)):
+                n.append((b + k * .12, .15, m - (bar % 2) * 2, "blip", 0.45))
+        if bar in (8, 9):                                     # answer phrase while they wander
             for o, d, m in ((0, .5, 76), (.5, .5, 74), (1, 1, 72), (2, .5, 69), (2.5, .5, 72), (3, 1, 74)):
-                n.append((b + 0.5 + o if bar == 8 and o < 1 else b + o, d * .9, m + 12, "square", 0.4))
-        if bar == 10:                                         # bar 10.5-11.5: tile chase blips
-            for k in range(4):
-                n.append((42 + k, .4, 84 + 3 * k, "blip", 0.7))
-                n.append((42 + k, .3, 72 + 3 * k, "square", 0.3))
+                n.append((b + o, d * .9, m + 12, "square", 0.4))
         if 11 <= bar < 14:                                    # coming back together: build
             for k in range(8):
                 n.append((b + k * .5, .4, ch[k % 4] + 24, "square", 0.15 + 0.03 * (bar - 11) * 2))
         if bar == 13:
             for k in range(16):
                 n.append((52 + k * .25, 0, 1200, "chipnoise", 0.3 + 0.04 * k))
-        if bar >= 14:                                         # outro
+        if bar >= 14:                                         # outro, cut dead at the end
             for k in range(8):
-                n.append((b + k * .5, .45, ch[k % 4] + 12, "square", 0.32))
-    n.append((56, 0, 1200, "crash", 0.8)); n.append((56, .1, 36, "triangle", 1.0))  # it's whole
-    for k, m in enumerate((72, 76, 79)):                       # the jump
-        n.append((56 + k * .15, .2, m + 12, "blip", 0.5))
-    n.append((57.0, .3, 84, "blip", .6)); n.append((57.2, .6, 91, "blip", .6))   # smile
-    n.append((59.0, .3, 88, "blip", .6))                                          # wink
-    n.append((62.4, 1.5, 76, "powerdown", 0.9))                                   # eyes off
+                if b + k * .5 < 63.4:
+                    n.append((b + k * .5, .45, ch[k % 4] + 12, "square", 0.32))
+    n.append((56, 0, 1200, "crash", 0.8)); n.append((56, .1, 36, "triangle", 1.0))  # reformed
+    for k in range(10):                                        # the magic sparkle
+        n.append((56 + k * .06, .12, 84 + 2 * k, "blip", 0.45))
+    n.append((58.0, .3, 84, "blip", .6)); n.append((58.2, .6, 91, "blip", .6))   # smile
+    n.append((60.0, .3, 88, "blip", .6)); n.append((60.25, .2, 93, "blip", .5))  # wink
+    n.append((63.4, .1, 36, "triangle", 1.0)); n.append((63.4, 0, 1200, "chipnoise", 0.9))  # off
+    n = [x for x in n if x[0] < 63.4 or x[3] in ("triangle", "chipnoise")]
     return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
 
 

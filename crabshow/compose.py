@@ -386,6 +386,45 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 sf = lively_start(act["move"], dur)
             score.cues.append(Cue(t, "clip", dur, policy=act["move"], start_frame=sf,
                                   yaw=FACE_CAMERA, only=only))
+        elif do == "mix":
+            # Square-dance shuffle. Each step cuts the grid into 2x2 blocks (offset by one
+            # cell on alternate steps) and every full block turns its four crabs one place,
+            # neighbouring blocks turning opposite ways like gears. No paths cross, and over
+            # a few steps crabs wander away from home. At the end every crab lights up in
+            # the colour of the spot it ended on, so the picture is whole again at once.
+            Mo = meta["mosaic"]
+            rc = Mo["rc"]
+            K = act.get("steps", 6)
+            slot_at = {(int(r), int(c)): k for k, (r, c) in enumerate(rc)}
+            slot_pos = pos.copy()                      # crab i stands on slot i now
+            occ = np.arange(n)                         # slot -> crab
+            crab_slot = np.arange(n)
+            path = np.zeros((n, K + 1, 2))
+            path[:, 0] = slot_pos
+            R, C = rc[:, 0].max() + 1, rc[:, 1].max() + 1
+            for k in range(K):
+                o = k % 2
+                for r in range(o, R - 1, 2):
+                    for c in range(o, C - 1, 2):
+                        ring = [slot_at.get((r, c)), slot_at.get((r, c + 1)),
+                                slot_at.get((r + 1, c + 1)), slot_at.get((r + 1, c))]
+                        if None in ring:
+                            continue
+                        cr = occ[ring]
+                        cr = np.roll(cr, 1 if ((r // 2 + c // 2) % 2 == 0) else -1)
+                        occ[ring] = cr
+                crab_slot[occ] = np.arange(n)
+                path[:, k + 1] = slot_pos[crab_slot]
+            score.cues.append(Cue(t, "track", dur, yaw=FACE_CAMERA, bob=_bob_spec(act, beat),
+                                  track={"path": path, "move": act.get("move", 0.85)}))
+            # The reform: colours, eyes and the face display follow the spots, not the crabs.
+            fs = crab_slot
+            cols, glow = cols[fs], glow[fs]
+            score.lights.append(Light(t + dur, cols.copy(), glow.copy(), fade=0.0))
+            for key in ("hole", "eye_open", "eye_happy", "rc"):
+                Mo[key] = Mo[key][fs]
+            pos = slot_pos[fs]
+            meta["mix_moved"] = int((fs != np.arange(n)).sum())
         elif do == "shatter":
             # The picture breaks into tiles that drift apart (cracks open between them),
             # twist a little, hang there while the tiles flash in a chase, then fit back.
