@@ -1,6 +1,6 @@
 """Collect a plan's segment branches (seg/<name>-NNNNN) and join them with the soundtrack.
 
-usage: python -I scripts/assemble.py plans/rave_v3.json [WxH]
+usage: python -I scripts/assemble.py plans/rave_v3.json [WxH] [--music halloween]
 """
 import json, subprocess, sys
 from pathlib import Path
@@ -10,7 +10,8 @@ from crabshow import music
 from crabshow.video import join_segments
 
 plan = json.loads(Path(sys.argv[1]).read_text())
-name = plan["name"] + "_" + plan["style"] + (f"_{sys.argv[2]}" if len(sys.argv) > 2 else "")
+size = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else None
+name = plan["name"] + "_" + plan["style"] + (f"_{size}" if size else "")
 out = Path("out")
 segdir = out / "segments_in" / name
 segdir.mkdir(parents=True, exist_ok=True)
@@ -34,8 +35,11 @@ ranges = [tuple(int(x) for x in s.stem.split("_")[-2:]) for s in segs]
 print("ranges:", ranges)
 for (a, b), (c, d) in zip(ranges, ranges[1:]):
     assert b == c, f"gap or overlap between {b} and {c}"
-synth = music.synth_rave if plan.get("music", "rave") == "rave" else music.synth_track
-audio, _ = synth([tuple(s) for s in plan["sections"]], bpm=plan["bpm"])
-wav = out / f"{plan['name']}_{plan.get('music', 'rave')}.wav"
+# --music overrides the plan's soundtrack, so one render can be tried with several.
+if "--music" in sys.argv:
+    plan["music"] = sys.argv[sys.argv.index("--music") + 1]
+audio, label = music.soundtrack(plan)
+wav = out / f"{plan['name']}_{label}.wav"
 music.write_wav(str(wav), audio)
-print("wrote", join_segments(segs, wav, out / f"{name}.mp4"))
+suffix = f"_{label}" if "--music" in sys.argv else ""
+print("wrote", join_segments(segs, wav, out / f"{name}{suffix}.mp4"))

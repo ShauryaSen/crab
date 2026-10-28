@@ -330,3 +330,17 @@ def synth_rave(sections, bpm=125.0, seed=3):
     mix /= np.abs(mix).max() + 1e-9
     mix = np.tanh(mix * 1.6) / np.tanh(1.6) * 0.9
     return mix.astype(np.float32), starts
+
+
+def soundtrack(plan):
+    """The audio for a plan: plan["music"] names a synth ("rave", "track") or an
+    arrangement in crabshow.arrange.PIECES. Returns (stereo float32, label)."""
+    name = plan.get("music", "rave")
+    from . import arrange
+
+    if name in arrange.PIECES:
+        dur = sum(b for _, b in plan["sections"]) * 4 * 60.0 / plan["bpm"]
+        return arrange.PIECES[name](bpm=plan["bpm"], seconds=dur), name
+    synth = synth_rave if name == "rave" else synth_track
+    audio, _ = synth([tuple(s) for s in plan["sections"]], bpm=plan["bpm"])
+    return audio, name

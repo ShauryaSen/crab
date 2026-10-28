@@ -37,9 +37,8 @@ def main():
         plan["_hero"] = int(meta["hero"])
     for w in meta.get("warnings", []):
         print("WARNING (plan):", w)
-    synth = music.synth_rave if plan.get("music", "rave") == "rave" else music.synth_track
-    audio, starts = synth([tuple(s) for s in plan["sections"]], bpm=plan["bpm"])
-    wav = out / f"{plan['name']}_{plan.get('music', 'rave')}.wav"
+    audio, label = music.soundtrack(plan)
+    wav = out / f"{plan['name']}_{label}.wav"
     music.write_wav(str(wav), audio)
 
     stem = f"{plan.get('sim_name', plan['name'])}_n{score.n}_sim"
