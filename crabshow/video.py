@@ -290,10 +290,10 @@ def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=108
         for _ in pool.imap_unordered(_render_chunk, jobs):
             pass
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps),
-           "-start_number", str(f0), "-i", str(frames_dir / "f%05d.png"),
-           "-frames:v", str(f1 - f0)]
+           "-start_number", str(f0), "-i", str(frames_dir / "f%05d.png")]
     if audio_path and not frames:
         cmd += ["-i", str(audio_path), "-c:a", "aac", "-b:a", "192k", "-shortest"]
+    cmd += ["-frames:v", str(f1 - f0)]
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium",
             "-movflags", "+faststart", str(out_path)]
     subprocess.run(cmd, check=True)
