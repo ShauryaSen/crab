@@ -33,12 +33,17 @@ def camera_at(keys, t):
     return tuple(keys[-1][1:])
 
 
-def auto_track(logs, duration, width, height, fps=10, sigma_s=1.2, margin=1.25):
-    """Smoothed swarm centroid and fit distance over time, sampled at `fps`."""
+def auto_track(logs, duration, width, height, fps=10, sigma_s=1.2, margin=1.25, score=None):
+    """Smoothed swarm centroid and fit distance over time, sampled at `fps`. With a score,
+    only crabs that are lit count, so crabs walking off into the dark don't widen the shot."""
     ts = np.arange(0, duration + 1 / fps, 1 / fps)
     cen, rx, ry = [], [], []
     for t in ts:
         xy = np.array([q[:2] for q in sample(logs, t)])
+        if score is not None:
+            lit = lights_at(score, t)[1] > 0.3
+            if lit.sum() >= 3:
+                xy = xy[lit]
         lo, hi = xy.min(0) - 0.35, xy.max(0) + 0.35
         cen.append((lo + hi) / 2)
         rx.append((hi[0] - lo[0]) / 2)
@@ -76,7 +81,7 @@ def _pick_crab(logs, t, pick):
     return int(np.argmin(score))
 
 
-def shot_track(plan, logs, duration, width, height):
+def shot_track(plan, logs, duration, width, height, score=None):
     """Edited camera: a list of shots with hard cuts between them.
 
     Each shot: {"t": start_s, "kind": "wide"|"close", "az": [a0, a1], "el": [e0, e1],
@@ -84,7 +89,7 @@ def shot_track(plan, logs, duration, width, height):
     "crab": "front"|"center"|"left"|"right"|index (close), "follow": 0..1 (wide)}.
     Values move smoothly within a shot; cut to the next shot at its "t".
     """
-    ts, cen, dist = auto_track(logs, duration, width, height)
+    ts, cen, dist = auto_track(logs, duration, width, height, score=score)
     shots = sorted(plan["shots"], key=lambda s: s["t"])
     ends = [s["t"] for s in shots[1:]] + [duration + 1]
     picked = {}
@@ -132,13 +137,13 @@ def shot_track(plan, logs, duration, width, height):
     return at
 
 
-def camera_track(plan, logs, duration, width, height):
+def camera_track(plan, logs, duration, width, height, score=None):
     """Camera keys are [t, [dx, dy, dz], zoom, azimuth, elevation]; the look-at point and
     distance follow the swarm automatically, the keys add offsets and framing. A plan with
     "shots" uses the edited, hard-cut camera instead."""
     if plan.get("shots"):
-        return shot_track(plan, logs, duration, width, height)
-    ts, cen, dist = auto_track(logs, duration, width, height)
+        return shot_track(plan, logs, duration, width, height, score)
+    ts, cen, dist = auto_track(logs, duration, width, height, score=score)
     keys = plan["camera"]
 
     def at(t):
@@ -278,7 +283,7 @@ def render_video(score, logs, plan, out_path, audio_path=None, fps=30, width=108
     frames_dir = frames_dir.parent / (frames_dir.name + "_frames")
     frames_dir.mkdir(parents=True, exist_ok=True)
     n_frames = int(score.duration * fps)
-    at = camera_track(plan, logs, score.duration, width, height)
+    at = camera_track(plan, logs, score.duration, width, height, score)
     cam = [at(k / fps) for k in range(n_frames)]
     f0, f1 = frames or (0, n_frames)
     f1 = min(f1, n_frames)
@@ -304,7 +309,7 @@ def preview_sheet(score, logs, plan, out_path, times, width=360, height=450):
     """A contact sheet of a few frames, for checking framing before a full render."""
     from .render import Renderer
 
-    at = camera_track(plan, logs, score.duration, width, height)
+    at = camera_track(plan, logs, score.duration, width, height, score)
     R = Renderer(score.n, np.ones((score.n, 3)), plan.get("style", "night"), width, height,
                  terrain=plan.get("terrain"))
     fx = None

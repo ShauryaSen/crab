@@ -121,10 +121,20 @@ def min_spacing(points: np.ndarray) -> float:
     return float(d.min())
 
 
-def fit_spacing(points: np.ndarray, spacing_m: float) -> np.ndarray:
-    """Scale a formation about its centre so its closest pair is exactly spacing_m apart."""
+def fit_spacing(points: np.ndarray, spacing_m: float, floor_frac: float = 0.8) -> np.ndarray:
+    """Scale a formation about its centre so typical neighbours are spacing_m apart.
+
+    Sized by the 10th-percentile nearest-neighbour distance rather than the single
+    closest pair (one tight pair would otherwise inflate a whole word), but never so
+    tight that any pair is closer than floor_frac * spacing_m.
+    """
     c = points.mean(0)
-    return c + (points - c) * (spacing_m / min_spacing(points))
+    d = np.linalg.norm(points[:, None] - points[None], axis=-1)
+    np.fill_diagonal(d, np.inf)
+    nn = d.min(1)
+    k = spacing_m / np.percentile(nn, 10)
+    k = max(k, floor_frac * spacing_m / nn.min())
+    return c + (points - c) * k
 
 
 def crab(n: int, width_m: float, seed: int = 0) -> np.ndarray:

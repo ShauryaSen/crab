@@ -44,6 +44,9 @@ PALETTES = {
                            for t in (p[:, 0] - p[:, 0].min()) / (np.ptp(p[:, 0]) + 1e-9)],
     "crab": lambda p, n: [(1.0, 0.25 + 0.15 * t, 0.1) for t in np.linspace(0, 1, n)],
     "white": lambda p, n: [(1.0, 1.0, 1.0)] * n,
+    "spooky": lambda p, n: [colorsys.hsv_to_rgb(0.78 - 0.45 * t, 0.85, 1)
+                            for t in (p[:, 0] - p[:, 0].min()) / (np.ptp(p[:, 0]) + 1e-9)],
+    "pumpkin": lambda p, n: [(1.0, 0.42 + 0.1 * t, 0.02) for t in np.linspace(0, 1, n)],
 }
 
 # The most visually lively stretch of each dance clip, picked by reference joint speed.
@@ -174,17 +177,44 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 goal, img_cols = F.pixel_art(art, pal, act.get("spacing", 0.8))
                 assert len(goal) == n, f"{act['shape']} needs n={len(goal)} crabs"
             else:
-                goal = shape_points(act, n)
+                goal = shape_points(act, act.get("count", n))
+            k = len(goal)
+            from scipy.optimize import linear_sum_assignment
+
+            def pick(goal):
+                """Which crab takes which goal (all crabs, or the k nearest when k < n)."""
+                cost = ((pos[:, None, :] - goal[None, :, :]) ** 2).sum(-1)
+                rows, cols_ = linear_sum_assignment(cost)
+                return rows, cols_
             # Shift the new shape to where the swarm already is, then assign.
             for _ in range(3):
-                perm = F.assign(pos, goal)
-                goal = goal + (pos - goal[perm]).mean(0)
+                rows, cols_ = pick(goal)
+                goal = goal + (pos[rows] - goal[cols_]).mean(0)
             goal = goal - goal.mean(0) * act.get("recentre", 0.5)
-            perm = F.assign(pos, goal)
-            targets = goal[perm]
+            rows, cols_ = pick(goal)
+            chosen = np.zeros(n, bool)
+            chosen[rows] = True
+            targets = pos.copy()
+            targets[rows] = goal[cols_]
+            perm = np.zeros(n, int)
+            perm[rows] = cols_
+            if k < n:
+                # Everyone not in the shape keeps running, out into the dark.
+                c = pos.mean(0)
+                out = pos[~chosen] - c
+                out /= np.linalg.norm(out, axis=1, keepdims=True) + 1e-9
+                targets[~chosen] = pos[~chosen] + out * act.get("runaway_m", 5.0)
             if img_cols is not None:
                 img_cols = img_cols[perm]
-            far = float(np.linalg.norm(targets - pos, axis=1).max())
+                meta["art_cols"] = img_cols.copy()
+                if act.get("dark_face"):
+                    # Carved pixels (the brightest) start unlit, as plain skin.
+                    face = img_cols.max(1) >= 0.9
+                    meta["face"] = face
+                    skin = img_cols[~face].mean(0)
+                    img_cols = img_cols.copy()
+                    img_cols[face] = skin
+            far = float(np.linalg.norm(targets - pos, axis=1)[chosen].max())
             vpk = peak_speed(far, dur)
             meta.setdefault("warnings", [])
             if vpk > 0.75:
@@ -194,8 +224,12 @@ def compose(plan: dict) -> tuple[Score, dict]:
                                   bob=_bob_spec(act, beat)))
             new_cols = img_cols if img_cols is not None else \
                 np.array(PALETTES[act.get("palette", "white")](targets, n))
-            score.lights.append(Light(t, new_cols, np.ones(n), fade=dur * 0.8))
-            cols, glow, pos = new_cols, np.ones(n), targets
+            new_glow = chosen.astype(float)
+            if k < n:
+                new_cols = new_cols.copy()
+                new_cols[~chosen] = cols[~chosen]
+            score.lights.append(Light(t, new_cols, new_glow, fade=dur * 0.8))
+            cols, glow, pos = new_cols, new_glow, targets
             meta["formations"].append({"bar": act["bar"], "label": act.get("text", act.get("shape"))})
         elif do == "bounce":
             # Stand in place and bounce; rate in beats per bounce, e.g. "every": [2, 0.5]
@@ -288,6 +322,45 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 score.lights.append(Light(t + dur, cols.copy(), np.ones(n), fade=0.1))
         elif do == "lights_out":
             score.lights.append(Light(t, cols.copy(), np.zeros(n), fade=act.get("bars", 1) * bar))
+        elif do == "ignite":
+            # Light the hidden face: upper pixels (eyes) first, then the rest (mouth).
+            face = meta["face"]
+            art = meta["art_cols"]
+            idx = np.nonzero(face)[0]
+            ys = pos[idx, 1]
+            eyes = idx[ys >= np.median(ys)]
+            mouth = idx[ys < np.median(ys)]
+            for k, group in enumerate((eyes, mouth)):
+                c2 = cols.copy()
+                c2[group] = art[group]
+                g2 = glow.copy()
+                g2[group] = 1.0
+                cols, glow = c2, g2
+                score.lights.append(Light(t + k * act.get("gap_beats", 1) * beat, cols.copy(),
+                                          glow.copy(), fade=0.12))
+        elif do == "scale":
+            # Every crab walks straight out from (or in toward) the centre: a rigid scaling,
+            # so no two paths cross. "flee" uses it at top speed.
+            c = pos.mean(0)
+            targets = c + (pos - c) * act["by"]
+            score.cues.append(Cue(t, "move", dur, targets=targets, yaw=FACE_CAMERA,
+                                  bob=_bob_spec(act, beat)))
+            far = float(np.linalg.norm(targets - pos, axis=1).max())
+            meta.setdefault("warnings", [])
+            if peak_speed(far, dur) > 1.0:
+                meta["warnings"].append(f"bar {act['bar']}: scale needs {peak_speed(far, dur):.2f} m/s")
+            pos = targets
+        elif do == "flicker":
+            # Candle flicker: the brightest crabs (a carved face) waver every 16th note.
+            lum = cols.max(1)
+            sel = lum >= act.get("min_lum", 0.9)
+            step = beat / 4
+            base = glow.copy()
+            for k in range(int(act.get("bars", 1) * 16)):
+                g = base.copy()
+                g[sel] = np.clip(rng.uniform(0.45, 1.0, sel.sum()) ** 0.5, 0, 1)
+                score.lights.append(Light(t + k * step, cols.copy(), g, fade=step * 0.8))
+            score.lights.append(Light(t + dur, cols.copy(), base, fade=0.1))
         elif do == "color":
             cols = np.array(PALETTES[act["palette"]](pos, n))
             score.lights.append(Light(t, cols.copy(), glow.copy(), fade=act.get("fade", beat)))
