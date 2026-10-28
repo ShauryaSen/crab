@@ -92,7 +92,7 @@ def build(cols=84, spacing=0.66, lum_min=0.06):
                       < 0.45 and r <= rm + 0.35 * ay for ec in eye_c)
             eh.append(bool(display[r, c] and arc))
             # Closed eye: a flat line across the eye's middle (for a wink).
-            line = any(abs(c - ec) <= ax * 0.95 for ec in eye_c) and abs(r - rm) <= max(0.6, 0.12 * ay)
+            line = any(abs(c - ec) <= ax * 0.95 for ec in eye_c) and abs(r - rm) <= max(1.1, 0.18 * ay)
             el.append(bool(display[r, c] and line))
     pts, rc = np.array(pts), np.array(rc)
     eye_open = np.array(eo)
