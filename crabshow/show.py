@@ -238,6 +238,8 @@ def simulate(score: Score, procs: int = 4):
 
 def sample(logs, t):
     """qpos of every crab at time t (nearest logged frame at or before t)."""
+    if hasattr(logs, "frame"):          # dense.DenseLogs
+        return logs.frame(t)
     res = []
     for times, q in logs:
         k = int(np.searchsorted(times, t, side="right") - 1)

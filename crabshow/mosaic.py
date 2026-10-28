@@ -15,18 +15,25 @@ import numpy as np
 from PIL import Image
 
 CACHE = Path(__file__).resolve().parent.parent / "out" / "mosaic"
+# The committed source picture: every machine must build the identical mosaic.
+SOURCE = Path(__file__).resolve().parent.parent / "assets" / "mosaic_source_studio.png"
 
 
-def _render_source(w=480, h=400):
+def _render_source(w=800, h=660, ss=2):
+    """A studio portrait of one Jumper: key, cool fill and warm rim lights, full-detail
+    meshes, rendered at ss x and downsampled for clean edges."""
     from .render import Renderer, STYLES
     from .runtime import DATA
 
     dflt = json.loads((DATA / "policies" / "posture" / "layout.json").read_text())["default_joint_pos"]
     st = copy.deepcopy(STYLES["moonbeach"])
-    st.glow, st.floor_reflect, st.shadows = 0.25, 0.0, False
+    st.glow, st.floor_reflect, st.shadows = 0.06, 0.0, False
     st.floor_rgb1 = st.floor_rgb2 = (0, 0, 0)
-    st.ambient, st.key_light, st.ocean = 0.35, 1.2, None
-    R = Renderer(1, np.array([[0.9, 0.12, 0.08]]), st, w, h)
+    st.ambient, st.key_light, st.ocean, st.headlight = 0.12, 0.85, None, 0.18
+    st.mesh_faces = 200000
+    st.extra_lights = [((0.6, -0.4, 0.5), (-0.6, 0.4, -0.5), (0.25, 0.32, 0.45)),   # cool fill
+                       ((-0.2, 0.8, 0.6), (0.2, -0.8, -0.5), (0.9, 0.75, 0.6))]     # warm rim
+    R = Renderer(1, np.array([[0.9, 0.12, 0.08]]), st, w * ss, h * ss)
     q = np.zeros(R.nq1)
     q[:3] = [0, 0, 0.106]
     q[3:7] = [np.cos(-np.pi / 4), 0, 0, np.sin(-np.pi / 4)]
@@ -35,11 +42,12 @@ def _render_source(w=480, h=400):
         if nm in dflt:
             q[R.model.joint(j).qposadr[0]] = dflt[nm]
     R.set_poses([q])
-    R.set_lights(np.array([[0.95, 0.15, 0.08]]), np.array([1.0]))
-    img = np.asarray(R.frame([0, 0, 0.045], 0.7, 90, -50))
-    m = img.max(-1) > 15
+    R.set_lights(np.array([[0.92, 0.13, 0.07]]), np.array([1.0]))
+    big = np.asarray(R.frame([0, 0, 0.045], 0.7, 90, -50))
+    img = np.asarray(Image.fromarray(big).resize((w, h), Image.LANCZOS))
+    m = img.max(-1) > 12
     ys, xs = np.nonzero(m)
-    pad = 6
+    pad = 8
     return Image.fromarray(img[max(0, ys.min() - pad):ys.max() + pad, max(0, xs.min() - pad):xs.max() + pad])
 
 
@@ -47,7 +55,7 @@ def build(cols=84, spacing=0.66, lum_min=0.06):
     """Returns dict: pts (n,2), cols (n,3), rc (n,2) grid row/col, hole (n,) bool,
     eye_open (n,) bool, eye_happy (n,) bool, hero (index of the crab at the left eye)."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    src_path = CACHE / "source.png"
+    src_path = SOURCE if SOURCE.exists() else CACHE / "source_studio.png"
     if not src_path.exists():
         _render_source().save(src_path)
     src = Image.open(src_path).convert("RGB")

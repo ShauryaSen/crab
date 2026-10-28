@@ -133,4 +133,13 @@ def _vignette(im, strength):
     return Image.fromarray(np.clip(a * v[..., None], 0, 255).astype(np.uint8))
 
 
-LOOKS = {"vhs": vhs, "film": film, "newsreel": newsreel, "8bit": eightbit, "crt": crt}
+def grain(img, t, k, amount=7.0):
+    """Fine film grain only: hides the dot pattern without changing the grade."""
+    a = np.asarray(img).astype(np.float32)
+    g = _rng(k).normal(0, amount, a.shape[:2])[..., None]
+    lum = a.mean(-1, keepdims=True) / 255
+    a = a + g * (0.35 + 0.65 * lum)
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+
+
+LOOKS = {"grain": grain, "vhs": vhs, "film": film, "newsreel": newsreel, "8bit": eightbit, "crt": crt}

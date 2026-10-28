@@ -30,7 +30,7 @@ if mode == "pack":
         print("wrote", dst / f"{src.stem}.part{k}.npz")
 elif mode == "unpack":
     src, dst = Path(sys.argv[2]), Path(sys.argv[3])
-    files = sorted(src.glob(f"{dst.stem}.part*.npz"), key=lambda p: int(p.stem.split("part")[-1]))
+    files = sorted(src.glob(f"{dst.stem}.part*.npz"), key=lambda p: int(np.load(p)["first"]))
     logs = []
     for f in files:
         z = np.load(f)

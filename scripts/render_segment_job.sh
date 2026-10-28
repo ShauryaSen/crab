@@ -8,7 +8,17 @@ cd "$ROOT"
 scripts/setup.sh
 # A pre-computed simulation, if one was published for this plan (big swarms).
 SIMNAME=$(.venv/bin/python -I -c "import json,sys;p=json.load(open(sys.argv[1]));print(p.get('sim_name', p['name']))" "$PLAN")
-if git ls-remote --exit-code origin "refs/heads/simpack/$SIMNAME" >/dev/null 2>&1; then
+PARTS=$(git ls-remote origin "refs/heads/simpart/$SIMNAME-*" | awk '{print $2}' | sed 's#refs/heads/##')
+if [ -n "$PARTS" ]; then
+  mkdir -p out/simpack
+  for BR in $PARTS; do
+    git fetch -q origin "$BR"
+    for f in $(git ls-tree --name-only "origin/$BR" simpack/); do
+      git show "origin/$BR:$f" > "out/simpack/$(basename "$f")"
+    done
+  done
+  # make_show reads the parts straight into a shared memory-mapped array.
+elif git ls-remote --exit-code origin "refs/heads/simpack/$SIMNAME" >/dev/null 2>&1; then
   git fetch -q origin "simpack/$SIMNAME"
   mkdir -p out/simpack
   for f in $(git ls-tree --name-only "origin/simpack/$SIMNAME" simpack/); do

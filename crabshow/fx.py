@@ -95,7 +95,7 @@ class FX:
             t0 = s["at"] * self.bar
             if t0 <= t < t0 + s.get("beats", 2) * self.beat:
                 k = (t - t0) / (s.get("beats", 2) * self.beat)
-                self._pillars(scn, xy, cols, 1 - k)
+                self._pillars(scn, xy, cols, 1 - k, s.get("stride", 1))
         for c in self.confetti:
             self._confetti(scn, t, *c)
 
@@ -158,8 +158,8 @@ class FX:
             _beam(scn, a, end, 0.012, [*rgb, alpha], emission=1.0)
             _beam(scn, a, end, 0.045, [*rgb, alpha * 0.18], emission=1.0)   # soft halo
 
-    def _pillars(self, scn, xy, cols, k):
-        for p, c in zip(xy, cols):
+    def _pillars(self, scn, xy, cols, k, stride=1):
+        for p, c in zip(xy[::stride], cols[::stride]):
             a = [p[0], p[1], 0.12]
             _beam(scn, a, [p[0], p[1], 9.0], 0.02, [*c, 0.7 * k], emission=1.0)
             _beam(scn, a, [p[0], p[1], 9.0], 0.08, [*c, 0.15 * k], emission=1.0)

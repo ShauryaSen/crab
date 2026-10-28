@@ -117,7 +117,9 @@ def build_scene(n: int, colors, style: Style, width=1080, height=1920, terrain=N
                                  size=[80, 40, 0.05], pos=[0, style.ocean_y + 40, -0.02],
                                  material="sea", contype=0, conaffinity=0)
     for p, d, c in style.extra_lights:
-        world.worldbody.add_light(pos=list(p), dir=list(d), diffuse=list(c), castshadow=False)
+        lt = world.worldbody.add_light(pos=list(p), dir=list(d), diffuse=list(c), castshadow=False)
+        lt.range = 500.0
+        lt.cutoff = 70
 
     for i in range(n):
         m = world.material(f"c{i}_shell")

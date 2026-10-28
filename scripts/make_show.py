@@ -42,15 +42,29 @@ def main():
     wav = out / f"{plan['name']}_{plan.get('music', 'rave')}.wav"
     music.write_wav(str(wav), audio)
 
-    cache = out / f"{plan.get('sim_name', plan['name'])}_n{score.n}_sim.pkl"
-    if cache.exists() and not args.resim:
+    stem = f"{plan.get('sim_name', plan['name'])}_n{score.n}_sim"
+    cache = out / f"{stem}.pkl"
+    dense = out / f"{stem}.npy"
+    packs = sorted((out / "simpack").glob(f"{stem}.part*.npz"))
+    big = score.n > 400
+    if big and dense.exists() and not args.resim:
+        from crabshow.dense import DenseLogs
+        logs = DenseLogs(dense)
+    elif big and packs and not args.resim:
+        from crabshow.dense import densify_packs
+        logs = densify_packs(packs, dense, score.duration)
+    elif cache.exists() and not args.resim:
         logs = pickle.loads(cache.read_bytes())
     else:
         logs = simulate(score)
         cache.write_bytes(pickle.dumps(logs))
+    if big and not hasattr(logs, "frame"):
+        from crabshow.dense import densify
+        logs = densify(logs, dense, score.duration)
     print(f"simulated {score.n} crabs x {score.duration:.1f}s in {time.time()-t:.0f}s")
-    d, when, pair = collisions(logs)
-    print(f"closest approach {d:.2f} m at t={when:.1f}s between crabs {pair}")
+    if not big:
+        d, when, pair = collisions(logs)
+        print(f"closest approach {d:.2f} m at t={when:.1f}s between crabs {pair}")
 
     if args.preview:
         import numpy as np
