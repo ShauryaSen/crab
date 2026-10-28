@@ -166,7 +166,12 @@ def compose(plan: dict) -> tuple[Score, dict]:
                 glow = g
                 score.lights.append(Light(t + k * span / n, cols.copy(), glow.copy(), fade=0.08))
         elif do == "form":
-            goal = shape_points(act, n)
+            img_cols = None
+            if act.get("shape") == "pixel_crab":
+                goal, img_cols = F.pixel_art(F.CRAB_ART, F.CRAB_PALETTE, act.get("spacing", 0.8))
+                assert len(goal) == n, f"pixel_crab needs n={len(goal)} crabs"
+            else:
+                goal = shape_points(act, n)
             # Shift the new shape to where the swarm already is, then assign.
             for _ in range(3):
                 perm = F.assign(pos, goal)
@@ -174,6 +179,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
             goal = goal - goal.mean(0) * act.get("recentre", 0.5)
             perm = F.assign(pos, goal)
             targets = goal[perm]
+            if img_cols is not None:
+                img_cols = img_cols[perm]
             far = float(np.linalg.norm(targets - pos, axis=1).max())
             vpk = peak_speed(far, dur)
             meta.setdefault("warnings", [])
@@ -182,7 +189,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
                                         f"{vpk:.2f} m/s peak; give it more bars")
             score.cues.append(Cue(t, "move", dur, targets=targets, yaw=FACE_CAMERA,
                                   bob=_bob_spec(act, beat)))
-            new_cols = np.array(PALETTES[act.get("palette", "white")](targets, n))
+            new_cols = img_cols if img_cols is not None else \
+                np.array(PALETTES[act.get("palette", "white")](targets, n))
             score.lights.append(Light(t, new_cols, np.ones(n), fade=dur * 0.8))
             cols, glow, pos = new_cols, np.ones(n), targets
             meta["formations"].append({"bar": act["bar"], "label": act.get("text", act.get("shape"))})
@@ -205,6 +213,20 @@ def compose(plan: dict) -> tuple[Score, dict]:
                                           fade=0.04))
             score.lights.append(Light(t + float(flash_t.max()) + beat, cols.copy(), np.ones(n),
                                       fade=0.3))
+        elif do == "wave_claws":
+            # Crabs forming the claws swing about the claw's shoulder (giant crab waves).
+            # Claw crabs are those beyond |x| > claw_x and above y > claw_y.
+            cx, cy = pos.mean(0)
+            side = np.sign(pos[:, 0] - cx)
+            in_claw = (np.abs(pos[:, 0] - cx) > act.get("claw_x", 3.5)) & \
+                (pos[:, 1] - cy > act.get("claw_y", 0.5))
+            pivot = np.stack([cx + side * act.get("pivot_x", 3.2),
+                              np.full(n, cy + act.get("pivot_y", 0.0))], 1)
+            weight = in_claw * (-side)      # mirror: both claws wave outward together
+            score.cues.append(Cue(t, "track", dur, yaw=FACE_CAMERA, track={
+                "pivot": pivot, "weight": weight.astype(float),
+                "amp": act.get("amp_deg", 18) * np.pi / 180,
+                "period": act.get("beats_per_wave", 2) * beat}))
         elif do == "jump_party":
             # Every crab jumps again and again at its own times: some land on the beat,
             # most do not, so the swarm boils. min_gap covers the jump plus landing.

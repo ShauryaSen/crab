@@ -148,3 +148,39 @@ def crab(n: int, width_m: float, seed: int = 0) -> np.ndarray:
             y0 = 215 + k * 17
             d.line([(200 + s * 85, y0), (200 + s * 130, y0 + 18)], fill=255, width=22)
     return _mask_to_points(np.asarray(img) > 127, n, width_m, seed)
+
+
+def pixel_art(rows: list[str], palette: dict, spacing: float):
+    """A grid formation from ASCII art: each non-space character is one crab, coloured by
+    `palette[char]`. Returns (points (n, 2), colours (n, 3)), centred, row 0 at the top."""
+    pts, cols = [], []
+    h = len(rows)
+    w = max(len(r) for r in rows)
+    for r, line in enumerate(rows):
+        for c, ch in enumerate(line):
+            if ch != " " and ch != ".":
+                pts.append(((c - (w - 1) / 2) * spacing, ((h - 1) / 2 - r) * spacing))
+                cols.append(palette[ch])
+    return np.array(pts), np.array(cols, dtype=float)
+
+
+# A 23x15 pixel crab (original art), claws up. R red shell, O orange claws, W eyes, K pupils.
+CRAB_ART = [
+    "..OO...............OO..",
+    ".O..O.............O..O.",
+    ".O..O.............O..O.",
+    "..OOO.............OOO..",
+    "....O....W...W....O....",
+    "....O....K...K....O....",
+    ".....O..RRRRRRR..O.....",
+    "......RRRRRRRRRRR......",
+    ".....RRRRRRRRRRRRR.....",
+    "....RRRRRRRRRRRRRRR....",
+    "....RRRRRRRRRRRRRRR....",
+    ".....RRRRRRRRRRRRR.....",
+    "...R..RRRRRRRRRRR..R...",
+    "..R..R...........R..R..",
+    ".R..R.............R..R.",
+]
+CRAB_PALETTE = {"R": (1.0, 0.18, 0.12), "O": (1.0, 0.55, 0.1), "W": (1.0, 1.0, 1.0),
+                "K": (0.15, 0.6, 1.0)}

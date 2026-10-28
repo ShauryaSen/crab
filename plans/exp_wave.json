@@ -1,0 +1,62 @@
+{
+  "name": "exp_wave",
+  "prompt": "crabs: become a crab",
+  "n": 123,
+  "style": "moonbeach",
+  "bpm": 128,
+  "seed": 2,
+  "sections": [
+    [
+      "intro",
+      2
+    ],
+    [
+      "build",
+      4
+    ],
+    [
+      "drop",
+      4
+    ]
+  ],
+  "acts": [
+    {
+      "bar": 0.25,
+      "do": "light_up",
+      "palette": "ocean",
+      "bars": 1.5
+    },
+    {
+      "bar": 2,
+      "do": "form",
+      "shape": "pixel_crab",
+      "bars": 3.5
+    },
+    {
+      "bar": 6,
+      "do": "wave_claws",
+      "bars": 4,
+      "amp_deg": 20,
+      "beats_per_wave": 4
+    }
+  ],
+  "fx": {
+    "floor": {
+      "from": 0,
+      "tile": 0.5,
+      "half": 12,
+      "pattern": "ripple",
+      "energy": 0.25
+    }
+  },
+  "shots": [
+    {
+      "t": 0,
+      "kind": "wide",
+      "az": 90,
+      "el": -88,
+      "zoom": 1.0
+    }
+  ],
+  "prompt_hold": 3
+}

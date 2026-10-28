@@ -1,0 +1,81 @@
+{
+  "name": "exp_pixel",
+  "prompt": "crabs: become a crab",
+  "n": 123,
+  "style": "moonbeach",
+  "bpm": 128,
+  "seed": 2,
+  "sections": [
+    [
+      "intro",
+      2
+    ],
+    [
+      "build",
+      4
+    ],
+    [
+      "drop",
+      2
+    ]
+  ],
+  "acts": [
+    {
+      "bar": 0.25,
+      "do": "light_up",
+      "palette": "ocean",
+      "bars": 1.5
+    },
+    {
+      "bar": 2,
+      "do": "form",
+      "shape": "pixel_crab",
+      "bars": 3.5
+    },
+    {
+      "bar": 6,
+      "do": "jump",
+      "bars": 1,
+      "ripple": "center",
+      "ripple_s": 0.8
+    }
+  ],
+  "fx": {
+    "floor": {
+      "from": 0,
+      "tile": 0.5,
+      "half": 12,
+      "pattern": "ripple",
+      "energy": 0.25
+    },
+    "trails": {
+      "len_s": 0.8
+    },
+    "pillars": [
+      {
+        "at": 6,
+        "beats": 3
+      }
+    ]
+  },
+  "shots": [
+    {
+      "t": 0,
+      "kind": "wide",
+      "az": 90,
+      "el": -88,
+      "zoom": 1.0
+    },
+    {
+      "t": 11.5,
+      "kind": "wide",
+      "az": [
+        80,
+        100
+      ],
+      "el": -40,
+      "zoom": 0.7
+    }
+  ],
+  "prompt_hold": 3
+}

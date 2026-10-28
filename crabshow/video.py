@@ -99,6 +99,24 @@ def shot_track(plan, logs, duration, width, height):
         s, t1 = shots[k], ends[k]
         u = float(np.clip((t - s["t"]) / max(t1 - s["t"], 1e-6), 0, 1))
         az, el = lerp(s.get("az", 90), u), lerp(s.get("el", -70), u)
+        if s.get("kind") == "zoom":
+            # Powers-of-ten move: from the swarm's fit distance down to one crab's face
+            # (or back out), log-linear in distance so the speed feels constant.
+            if k not in picked:
+                picked[k] = _pick_crab(logs, s["t"], s.get("crab", "center"))
+            i = picked[k]
+            e = u * u * (3 - 2 * u)
+            if s.get("out"):
+                e = 1 - e
+            j = min(int(round(t * 10)), len(ts) - 1)
+            far_look = np.array([cen[j][0], cen[j][1], 0.0])
+            near_look = np.asarray(sample([logs[i]], t)[0][:3]) + np.array([0, 0, 0.03])
+            look = far_look + (near_look - far_look) * e
+            d_far = float(dist[j] * s.get("zoom_far", 1.1))
+            d_near = s.get("dist_near", 0.9)
+            dd = float(np.exp(np.log(d_far) + (np.log(d_near) - np.log(d_far)) * e))
+            el = s.get("el_far", -89) + (s.get("el_near", -18) - s.get("el_far", -89)) * e
+            return look, dd, az, el
         if s.get("kind") == "close":
             if k not in picked:
                 picked[k] = _pick_crab(logs, s["t"], s.get("crab", "front"))
