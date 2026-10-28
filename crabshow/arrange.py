@@ -615,4 +615,86 @@ def halloween_v3(bpm=128.0, seconds=31.875, prompt=None, t0=0.3, cps=22.0, enter
     return render(n, bpm, seconds, reverb_s=2.8, wet=0.32)
 
 
-PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4, "halloween_v3": halloween_v3}
+def chiptune_v5(bpm=128.0, seconds=33.75):
+    """8-bit, on the v5 hero: boot and smile 0-3, zoom in 3-5, drop at 5 as the camera lands
+    on the hero and travels over the party, a riser as it pulls out (8.5-9.5), the giant
+    crab dances 9.5-12.5, marching shuffle 12.5-15.5 (a hop per step), reform at 15.5,
+    eyes open 16.5, wink 17, smile 17.4, cut at 17.9."""
+    n = []
+    _boot(n, 3.0)
+    n.append((6.0, .2, 81, "blip", .5)); n.append((6.2, .3, 88, "blip", .5))     # blink
+    n.append((8.0, .3, 79, "blip", .5)); n.append((8.15, .4, 86, "blip", .5))    # eyes open
+    n.append((10.0, .3, 84, "blip", .6)); n.append((10.2, .6, 91, "blip", .6))   # smile
+    end = 17.9 * 4
+
+    def groove(b, ch, root, hats=True):
+        for k in range(8):
+            n.append((b + k * .5, .45, root + (12 if k % 2 else 0), "triangle", 0.8))
+        for k in range(4):
+            n.append((b + k, .1, 36, "triangle", 1.0))
+            if hats:
+                n.append((b + k + .5, 0, 70, "chipnoise", 0.6))
+        n.append((b + 1, 0, 1200, "chipnoise", 0.8)); n.append((b + 3, 0, 1200, "chipnoise", 0.8))
+        for off in (0, .75, 1.5, 2.25, 3):
+            for m in ch[1:3]:
+                n.append((b + off, .2, m, "square", 0.22))
+
+    def hook(b, vel=0.55):
+        for o, d, m in HOOK:
+            if b + o < end:
+                n.append((b + o, d * .9, m + 12, "square", vel))
+                n.append((b + o + .02, d * .9, m + 24, "square", 0.15))
+
+    for bar in range(18):
+        b = bar * 4
+        ch = CHORDS[bar % 2]
+        root = BASSROOT[bar % 2]
+        if bar < 3 or 16 <= bar:                              # calm arpeggio
+            for k in range(8):
+                if b + k * .5 < end:
+                    n.append((b + k * .5, .45, ch[k % 4] + 12, "square", 0.3))
+        if 3 <= bar < 5:                                      # zoom in: build
+            for k in range(16):
+                rise = (bar - 3) * 4 + k * .25
+                n.append((b + k * .25, .22, ch[k % 4] + 12 + (12 if rise >= 4 else 0),
+                          "square", 0.35 + 0.04 * rise))
+            for k in range(8):
+                n.append((b + k * .5, .45, root + (12 if k % 2 else 0), "triangle", 0.6))
+        if bar == 4:
+            for k in range(16):
+                n.append((16 + k * .25, 0, 1200, "chipnoise", 0.3 + 0.04 * k))
+                n.append((16 + k * .25, .25, 60 + k * 2, "square", 0.12 + 0.01 * k))
+        if 5 <= bar < 16:
+            groove(b, ch, root)
+    n.append((20, 0, 1200, "chipnoise", 1.0)); n.append((20, 0, 1200, "crash", 0.6))   # the drop
+    hook(20); hook(28)
+    for b in np.arange(20, 34, 1.0):                          # party sparkle on random 8ths
+        n.append((float(b) + 0.5 * (int(b) % 3 == 0), .12, 84 + 3 * (int(b) % 4), "blip", 0.25))
+    for k in range(16):                                       # pull out: riser 8.5-9.5
+        n.append((34 + k * .25, .25, 64 + k * 2, "square", 0.15 + 0.012 * k))
+        n.append((34 + k * .25, 0, 1200, "chipnoise", 0.25 + 0.04 * k))
+    n.append((38, 0, 1200, "crash", 0.9)); n.append((38, .1, 36, "triangle", 1.0))    # giant dance
+    hook(38, 0.65); hook(46, 0.65)
+    for k in range(12):                                       # giant dance: octave stabs
+        b = 38 + k
+        for m in CHORDS[(k // 4) % 2]:
+            n.append((b + .5, .2, m + 12, "square", 0.25))
+    for st in (50, 54, 58):                                   # shuffle: rudiments + hop
+        for k in (0, .25, .5, 2, 2.25, 2.5, 3.5, 3.75):
+            n.append((st + k, 0, 1200, "chipnoise", 0.35))
+        for k, m in enumerate((84, 88, 91)):
+            n.append((st + k * .12, .15, m, "blip", 0.45))
+    for k in range(16):
+        n.append((58 + k * .25, 0, 1200, "chipnoise", 0.25 + 0.04 * k))
+    n.append((62, 0, 1200, "crash", 0.8)); n.append((62, .1, 36, "triangle", 1.0))    # reformed
+    for k in range(10):
+        n.append((62 + k * .06, .12, 84 + 2 * k, "blip", 0.45))
+    n.append((66.0, .3, 79, "blip", .5))                                          # eyes open
+    n.append((68.0, .2, 88, "blip", .6)); n.append((68.25, .3, 95, "blip", .6))   # wink
+    n.append((69.6, .3, 84, "blip", .6)); n.append((69.8, .5, 91, "blip", .6))    # smile
+    n.append((end, .1, 36, "triangle", 1.0)); n.append((end, 0, 1200, "chipnoise", 0.9))
+    n = [x for x in n if x[0] <= end]
+    return render(n, bpm, seconds, reverb_s=0.8, wet=0.08)
+
+
+PIECES = {"halloween": halloween, "disco": disco, "chiptune": chiptune, "chiptune_v4": chiptune_v4, "halloween_v3": halloween_v3, "chiptune_v5": chiptune_v5}

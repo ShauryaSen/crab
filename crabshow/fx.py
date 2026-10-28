@@ -71,6 +71,15 @@ class FX:
             col = np.array([colorsys.hsv_to_rgb(h, 0.8, 1) for h in hue])
             spin = rng.uniform(0, 2 * np.pi, (n, 2))
             self.confetti.append((t0, p0, v, col, spin, c.get("life", 3.5)))
+        # Confetti poppers: a small burst straight up from a crab, wherever it is then.
+        for i, tp in getattr(score, "poppers", []):
+            times, q = logs[i]
+            k = int(np.clip(np.searchsorted(times, tp), 0, len(times) - 1))
+            n = 26
+            p0 = np.repeat(np.array([[q[k][0], q[k][1], 0.16]]), n, 0)
+            v = np.stack([rng.normal(0, 0.7, n), rng.normal(0, 0.7, n), rng.uniform(2.2, 3.8, n)], 1)
+            col = np.array([colorsys.hsv_to_rgb(h, 0.85, 1) for h in rng.uniform(0, 1, n)])
+            self.confetti.append((tp, p0, v, col, rng.uniform(0, 2 * np.pi, (n, 2)), 2.0))
 
     # ------------------------------------------------------------------
     def _active(self, spans, t):

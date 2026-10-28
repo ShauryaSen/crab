@@ -50,6 +50,8 @@ class Score:
     duration: float = 0.0
     terrain: dict | None = None
     jumps: list = field(default_factory=list)   # (crab, take-off time) for render effects
+    movies: list = field(default_factory=list)  # giant moves played through the lights
+    poppers: list = field(default_factory=list) # (crab, time): a confetti popper goes off
 
 
 RAMP = 0.25   # fraction of a move spent accelerating (and again decelerating)
@@ -106,6 +108,9 @@ def simulate_crab(args):
             c.run_walk(cue.dur, _hold_cmd(home, cue.yaw), posture=pst)
         elif cue.kind == "track":
             c.run_walk(cue.dur, _track_cmd(home, cue, i), posture=pst)
+            if "path" in cue.track:
+                # A shuffle ends on a new spot: that is home now, or the crab walks back.
+                home = np.asarray(cue.track["path"][i][-1], dtype=float).copy()
         elif cue.kind == "party":
             # Jump whenever this crab's schedule says; bounce in between.
             for tj in cue.jumps[i]:
@@ -120,7 +125,9 @@ def simulate_crab(args):
                 c.run_walk(rest, _hold_cmd(home, cue.yaw), posture=pst)
         elif cue.kind == "variety":
             sp = cue.track["spec"][i]
-            if sp[0] == "jumps":
+            if sp[0] == "hold":
+                pass
+            elif sp[0] == "jumps":
                 for tj in sp[1]:
                     pre = tj - 0.3 - c.t
                     if pre > 0.01:
@@ -286,6 +293,15 @@ def sample(logs, t):
 def lights_at(score: Score, t: float):
     """Blend lighting cues (plus a white flash on every jump): (colors (n,3), glow (n,))."""
     cols, glow = _lights_at(score, t)
+    for mv in getattr(score, "movies", []):
+        from .giant import lights as giant_lights
+
+        g = giant_lights(mv, t, score.n)
+        if g is not None:
+            # Cross-fade in and out of the picture over 0.3 s.
+            w = float(np.clip(min(t - mv["t0"], mv["t1"] - t) / 0.3, 0, 1))
+            cols = cols * (1 - w) + g[0] * w
+            glow = glow * (1 - w) + g[1] * w
     for i, tj in score.jumps:
         u = (t - tj) / 0.35
         if 0 <= u <= 1:
