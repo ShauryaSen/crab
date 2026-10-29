@@ -487,7 +487,8 @@ def compose(plan: dict) -> tuple[Score, dict]:
                           moves=act.get("moves"),
                           hype_t=sec("hype") if "hype" in act else None,
                           wave2_t=B(act["wave2"]) if "wave2" in act else None,
-                          wave2_v=act.get("wave2_v", 3.5), pace=act.get("pace", 0.5))
+                          wave2_v=act.get("wave2_v", 3.5), pace=act.get("pace", 0.5),
+                          hype_dances=act.get("hype_dances"))
             mm = ev["meta"]
             meta["mob"] = mm
             plan["_patch"] = [float(mm["P"][0]), float(mm["P"][1])]

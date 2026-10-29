@@ -78,7 +78,8 @@ def _smooth(x):
 def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, ripple_pow,
           ripple_d, star_t, spin_t, heart_t, beat_t, home_t, home_by, party_until,
           dark=None, wander_m=2.6, speed=(0.25, 0.55), hot_m2=30.0, sep=0.36,
-          moves=None, popper_frac=0.04, hype_t=None, wave2_t=None, wave2_v=3.5, pace=0.5):
+          moves=None, popper_frac=0.04, hype_t=None, wave2_t=None, wave2_v=3.5, pace=0.5,
+          hype_dances=None):
     """Plan the whole party. Times are in seconds. Returns a dict with per-crab scripts,
     jump and popper events, the patch (indices, arms) and the light keys of the patch."""
     n = len(pos)
@@ -226,11 +227,19 @@ def build(pos, rng, beat, *, hero, t_drop, path_to, zone_m, patch_r, ripple_s, r
             calm = wave2_t is not None and wave2_t - 4.5 <= t < wave2_t + 4.0
             if calm and (wave2_t is None or t < wave2_t + np.linalg.norm(p[q] - P) / wave2_v):
                 r = 1.0                                # walk on until the wave reaches you
-            if r < (0.6 if hype else 0.30):
+            near = np.linalg.norm(p[q] - P) < 9.0          # in the shot around the star/heart
+            if r < (0.75 if hype and near else 0.6 if hype else 0.30):
                 mv = mv_names[rng.choice(len(mv_names), p=mv_w)]
-                if hype and rng.uniform() < 0.7:
-                    mv = "jumps"
                 dur = rng.uniform(2.0, 4.0)
+                if hype and hype_dances:
+                    # Hype: around the patch crabs break into the big dances; the rest jump.
+                    names, w = list(hype_dances), np.array(list(hype_dances.values()), float)
+                    if rng.uniform() < 0.6:
+                        mv, dur = names[rng.choice(len(names), p=w / w.sum())], rng.uniform(3.0, 5.0)
+                    else:
+                        mv = "jumps"
+                elif hype and rng.uniform() < 0.7:
+                    mv = "jumps"
                 if mv == "jumps":
                     events[q].append((t, "jump", None))
                     dur = 1.9
