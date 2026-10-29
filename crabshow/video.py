@@ -133,14 +133,18 @@ def shot_track(plan, logs, duration, width, height, score=None):
             if k not in picked:
                 pk = s.get("crab", "hero")
                 i = plan["_hero"] if pk == "hero" else int(pk)
-                if score is not None:
-                    # Anchor on the crab's slot, not where it happens to be (mid-jump), so
-                    # the next shot can pick up exactly where this one ends.
-                    picked[k] = np.array([*score.start[i], s.get("z", 0.06) - 0.02])
-                else:
-                    picked[k] = np.asarray(sample([logs[i]], s["t"])[0][:3]) + np.array([0, 0, 0.03])
-            a = picked[k]
+                # Start exactly where the zoom ended (on the crab as it is then)...
+                live = np.asarray(sample([logs[i]], s["t"])[0][:3]) + np.array([0, 0, 0.03])
+                # ...and glide onto its slot by the end, so the next shot (anchored on the
+                # same spot) picks up exactly where this one stops.
+                slot = np.array([*score.start[i], s.get("z", 0.06) - 0.02]) \
+                    if score is not None else live
+                picked[k] = (live, slot)
+            live, slot = picked[k]
             e = u * u * (3 - 2 * u)
+            if s.get("ease") == "late":
+                e = u ** 3 * (4 - 3 * u)
+            a = live + (slot - live) * e
             by = np.array([*s["by"][:2], s["by"][2] if len(s["by"]) > 2 else 0.02])
             if s.get("ease") == "late":
                 # Gathers speed and height as it goes, then settles: travel, distance (log)

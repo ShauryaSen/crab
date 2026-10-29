@@ -74,9 +74,18 @@ def densify_packs(files, out_path, duration, fps=30.0):
             if Q is None:
                 Q = np.lib.format.open_memmap(out_path, mode="w+", dtype=np.float32,
                                               shape=(n, F, base.shape[1] + joints.shape[1]))
+            # Poses are logged on control steps (every 0.04 s), not on video frames: blend
+            # the two around each frame so motion does not judder at 30 fps.
             k = np.clip(np.searchsorted(t, ft, side="right") - 1, 0, L - 1)
-            Q[i, :, :base.shape[1]] = base[off:off + L][k]
-            Q[i, :, base.shape[1]:] = joints[off:off + L][k]
+            k1 = np.minimum(k + 1, L - 1)
+            w = np.clip((ft - t[k]) / np.maximum(t[k1] - t[k], 1e-9), 0, 1)[:, None]
+            b, j = base[off:off + L], joints[off:off + L]
+            bq = b[k] * (1 - w) + b[k1] * w
+            if b.shape[1] >= 7:                       # x y z + quaternion: renormalise it
+                q = bq[:, 3:7]
+                bq[:, 3:7] = q / np.linalg.norm(q, axis=1, keepdims=True)
+            Q[i, :, :base.shape[1]] = bq
+            Q[i, :, base.shape[1]:] = j[k] * (1 - w) + j[k1] * w
             off += L
             i += 1
     Q.flush()
