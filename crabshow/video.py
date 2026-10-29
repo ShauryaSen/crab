@@ -324,6 +324,8 @@ def defocus(img, cfg, camera, height, t=None):
         if t0 <= t:
             wb = w * float(np.clip((t - t1) / ramp, 0.0, 1.0))
     k = cfg.get("k", 0.45)
+    if t is not None and cfg.get("sharp") and t < cfg["sharp"][0]:
+        k = cfg.get("k_open", k)                   # opening softness (match k_after to loop)
     if t is not None and cfg.get("sharp") and t >= cfg["sharp"][1]:
         k = cfg.get("k_after", k)                  # how much it softens once whole again
     sigma = float(k * cell_px * wb * wb * (3 - 2 * wb))
