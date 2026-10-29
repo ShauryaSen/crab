@@ -1,4 +1,4 @@
-# crab: type anything, a crab swarm performs it
+# crab
 
 An entry for the [KingKong Crab Robot Open-source Challenge](https://beunlimited.me/en/events/crab-robot-challenge-2026).
 
