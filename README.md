@@ -31,8 +31,10 @@ The video loops: the last frame matches the first. Music: an original 8-bit trac
 
 <img src="media/halloween_pumpkin.gif" width="300" alt="Orange crabs walk into a jack-o'-lantern whose face lights up"> <img src="media/halloween_boo.gif" width="300" alt="The jack-o'-lantern rearranges into the word BOO in green lights, which then drains away">
 
-One typed prompt drives the whole show:
-*"crabs: it's halloween, become a jack-o'-lantern, light up, and say BOO!"*
+The video opens on a typed request, *"crabs: it's halloween, become a jack-o'-lantern,
+light up, and say BOO!"*, and the crabs act it out. (The choreography for this one was
+written by hand as a plan file; the automatic prompt-to-plan step only covers simpler
+requests like "make a heart, then spell HI".)
 
 1. 228 crabs glow orange and walk into a jack-o'-lantern.
 2. The face lights up, and the crabs jump on the beat.
@@ -48,8 +50,9 @@ the [`deliverables` branch](https://github.com/shauryasen/crab/tree/deliverables
 ## How it works
 
 1. **A plan, written in bars of music.** Each video is a JSON file in `plans/` that says
-   what happens on which beat: "form a heart at bar 12, jump at bar 14". The Halloween plan
-   was made from the prompt by `crabshow/prompt.py`.
+   what happens on which beat: "form a heart at bar 12, jump at bar 14". For simple requests
+   ("make a heart, jump on the drop, spell HI") `crabshow/prompt.py` writes the plan from
+   the prompt; the two videos above were choreographed by hand.
 2. **Every crab gets its own physics sim.** `crabshow/runtime.py` loads the Jumper robot and
    its exported policies (`posture` for walking, `jump`, and the dance and gesture moves)
    and runs them in MuJoCo. Each crab is told only where to walk and which move to do. The
