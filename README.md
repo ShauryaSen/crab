@@ -1,7 +1,5 @@
 # crab
 
-**Thousands of dancing crabs in simulation"
-
 This is my entry for the [KingKong Crab Robot Open-source Challenge](https://beunlimited.me/en/events/crab-robot-challenge-2026).
 Every crab in these videos is KingKong's open-source [Jumper](https://github.com/KingKongRobotics/jumper)
 robot, simulated in MuJoCo and moved only by Jumper's own trained AI policies. Nothing is
