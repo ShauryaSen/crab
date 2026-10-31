@@ -12,7 +12,7 @@ hand-animated.
 <img src="media/hero_zoom.gif" width="300" alt="The camera zooms into a giant smiling crab and finds it is made of thousands of small crabs"> <img src="media/hero_heart.gif" width="300" alt="A patch of crabs forms a spinning rainbow star, then a beating heart">
 
 Music: an original 8-bit track I made with claude
-[Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/09_hero_loop_4x5.mp4)
+**[▶ Watch on YouTube](https://www.youtube.com/shorts/qiCtP5Hpxmo)** · [Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/09_hero_loop_4x5.mp4)
 
 ### 2. "Happy Halloween from 228 robot crabs" (32 s)
 
@@ -23,7 +23,7 @@ requests like "make a heart, then spell HI".)
 
 Music: I edited Bach's Toccata in D minor and Grieg's *In the Hall of the Mountain King* (both public
 domain), with claude to add organs, bells and thunder sounds
-[Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/05_halloween_4x5.mp4)
+**[▶ Watch on YouTube](https://www.youtube.com/shorts/HFBJltu9Y7U)** · [Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/05_halloween_4x5.mp4)
 
 All the finished videos, including the earlier crab rave and a "how it works" cut, are in
 the [`deliverables` branch](https://github.com/shauryasen/crab/tree/deliverables/videos).
