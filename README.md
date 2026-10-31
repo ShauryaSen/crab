@@ -25,7 +25,7 @@ It looks like one big red crab. Zoom in and every pixel is a crab: 11,904 of the
 5. The camera pulls back, everyone scuttles home, and the big crab is whole again. It winks.
 
 The video loops: the last frame matches the first. Music: an original 8-bit track.
-[Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/09_hero_loop_4x5.mp4)
+**[▶ Watch on YouTube](https://www.youtube.com/shorts/qiCtP5Hpxmo)** · [Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/09_hero_loop_4x5.mp4)
 
 ### 2. "Happy Halloween from 228 robot crabs" (32 s)
 
@@ -42,7 +42,7 @@ requests like "make a heart, then spell HI".)
 
 Music: Bach's Toccata in D minor and Grieg's *In the Hall of the Mountain King* (both public
 domain), arranged and synthesised in code, with organ, bells and thunder.
-[Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/05_halloween_4x5.mp4)
+**[▶ Watch on YouTube](https://www.youtube.com/shorts/HFBJltu9Y7U)** · [Download the MP4](https://github.com/shauryasen/crab/raw/deliverables/videos/05_halloween_4x5.mp4)
 
 All the finished videos, including the earlier crab rave and a "how it works" cut, are in
 the [`deliverables` branch](https://github.com/shauryasen/crab/tree/deliverables/videos).
